@@ -37,3 +37,21 @@ name, and prohibited GitHub pushes without a request.
 In response, the assistant reread the current source and checked for repository
 instructions, then added these three documentation files. This follow-up added
 no C++ functionality and performed no GitHub push.
+
+## Milestone 2
+
+The user requested implementation of Cluster, preservation of the milestone-1
+example, and six self-checking scenarios covering initialization, 2D/3D means,
+rejected dimensions, clearing, and empty updates. The user specified the exact
+warning-enabled C++17 build command and required actual compilation and execution.
+
+The assistant read the existing source and project notes and checked for
+repository instructions. It implemented Cluster.h and Cluster.cpp, extended
+main.cpp with tolerance-based checks and nonzero failure reporting, and updated
+DESIGN.md, TESTING.md, and this record. The requested compilation succeeded with
+no warnings, and the executable returned 0 with all six checks passing. Actual
+output is recorded in TESTING.md. No milestone-2 compilation failures occurred.
+
+DataPoint and DataSet were not changed. Initializers and KMeans were not
+implemented, and no GitHub push was performed. No independent human testing or
+answers to the milestone-2 understanding questions are claimed here.
