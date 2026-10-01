@@ -55,3 +55,23 @@ output is recorded in TESTING.md. No milestone-2 compilation failures occurred.
 DataPoint and DataSet were not changed. Initializers and KMeans were not
 implemented, and no GitHub push was performed. No independent human testing or
 answers to the milestone-2 understanding questions are claimed here.
+
+## Milestone 3
+
+The user requested IInitialiser in the existing IInitializer.h, a random strategy
+using shuffled distinct indices and a caller-supplied generator, and executable
+self-checks preserving both earlier demonstrations. The user specified the
+interface, build command, lifetime arrangement, and teaching topics.
+
+The assistant read the existing code and documentation and checked for repository
+instructions, then implemented IInitializer.h and RandomInitialiser.h/.cpp and
+extended main.cpp with nine checks. It ran the requested warning-enabled C++17
+build and the executable: both exited with code 0, compilation printed no
+warnings, and all earlier and new checks passed. No milestone-3 build failures
+occurred. TESTING.md records the full actual output.
+
+The assistant updated DESIGN.md with the planned main-owned initializer and
+temporary const-reference use by future KMeans::fit(), and updated testing and
+usage records. KMeans and k-means++ were not implemented. No duplicate interface
+file or GitHub push was made. This record does not claim independent human
+testing or answers to the milestone-3 understanding questions.

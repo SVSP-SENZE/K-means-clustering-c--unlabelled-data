@@ -71,3 +71,49 @@ checks the exception, size, centroid, and both existing members. Failed checks
 throw std::runtime_error; the surrounding catch prints FAIL and returns 1.
 No deliberate failure was injected to execute that failure-reporting path.
 The earlier proposed DataPoint/DataSet edge-case checks remain unexecuted.
+
+## Executed during milestone 3
+
+```powershell
+g++ -std=c++17 -Wall -Wextra -Wpedantic DataPoint.cpp DataSet.cpp Cluster.cpp RandomInitialiser.cpp main.cpp -o MiniCluster.exe
+.\MiniCluster.exe
+```
+
+Compilation exited with code 0 and no warnings. Execution exited with code 0.
+Full actual output:
+
+```text
+Dataset size: 4
+Dataset dimension: 2
+Squared distance between (1,1) and (1,3): 4
+Rejected 3D point: Point dimension does not match dataset dimension.
+Dataset size after rejected addition: 4
+PASS: Initial centroid (0,0), size 0
+PASS: 2D mean centroid (1,2), size 2
+PASS: 3D member rejected; centroid and members unchanged
+PASS: Clear members: size 0, centroid remains (1,2)
+PASS: Empty update preserves centroid (1,2)
+PASS: 3D mean centroid (2,3,4), size 2
+All milestone-2 checks passed.
+PASS: Base-reference call returns k input points
+PASS: Unique input coordinates are selected without repetition
+PASS: Fresh generators with the same seed give the same ordered centres
+PASS: k=1 returns one input point
+PASS: k=dataset.size() returns every input point once
+PASS: Empty dataset is rejected
+PASS: k=0 is rejected
+PASS: k larger than dataset size is rejected
+PASS: Identical coordinates are accepted for valid k
+All milestone-3 checks passed.
+```
+
+Nine new checks run through a const IInitialiser reference. They reuse the
+absolute coordinate tolerance of 1e-9 and the existing failure handling (FAIL
+message and exit status 1). Same-seed repeatability compares freshly constructed
+generators seeded with 12345, including centre order. No test requires different
+seeds to give different results. The full-size selection check verifies all
+unique observations occur once. The duplicate dataset contains three identical
+observations and requests all three.
+
+The invalid-input exception paths were executed. A deliberately failing check
+was not injected. Previously proposed DataPoint/DataSet checks remain unexecuted.

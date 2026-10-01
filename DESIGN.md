@@ -15,11 +15,11 @@ features and report design deviations. Do not push to GitHub without a request.
 | DataSet | Own points of a consistent dimension | Implemented in milestone 1 |
 | Cluster | Own a centroid and assigned members | Implemented in milestone 2 |
 | KMeans | Coordinate clustering and prediction | Not implemented |
-| IInitialiser | Define the centroid-selection interface | Not implemented |
-| RandomInitialiser | Select random initial centroids | Not implemented |
+| IInitialiser | Define the centroid-selection interface | Implemented in milestone 3 |
+| RandomInitialiser | Select random initial centroids | Implemented in milestone 3 |
 | KMeansPlusPlusInitialiser | Select initial centroids using K-Means++ | Not implemented |
 
-The interface filename is **IInitializer.h** and its future class name is
+The interface filename is **IInitializer.h** and its class name is
 **IInitialiser**. Do not create a duplicate interface file.
 
 ## Milestone 1 decisions
@@ -56,3 +56,24 @@ line showing dataset size after rejection.
   an absolute tolerance of 1e-9. A failed check throws, is reported, and returns 1.
 
 No milestone 2 design deviations. Initializers and KMeans remain unimplemented.
+
+## Milestone 3 decisions
+
+- IInitializer.h defines IInitialiser with a public inline defaulted virtual
+  destructor and a const pure virtual initialise(dataset, k, rng) operation.
+- RandomInitialiser publicly inherits from IInitialiser and overrides that
+  operation. Empty input and k outside [1, dataset.size()] throw
+  std::invalid_argument before shuffling.
+- Indices are filled with std::iota, shuffled using the supplied std::mt19937,
+  and the first k indexed points are copied into the result. Distinct indices
+  may refer to identical coordinates. The generator is never reseeded internally.
+- The const operation leaves the initializer unchanged but advances the caller's
+  generator through a non-const reference. Same-seed tests use fresh generators
+  and compare ordered results within this implementation; no cross-library
+  shuffle ordering or different-seed difference is assumed.
+- Planned lifetime: main() owns the initializer. A future KMeans::fit() receives
+  it by const reference for the duration of the call. KMeans does not retain or
+  own the initializer.
+
+No milestone 3 design deviations. KMeans and KMeansPlusPlusInitialiser remain
+unimplemented. The milestone-1 and milestone-2 demonstrations are preserved.

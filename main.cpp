@@ -1,9 +1,11 @@
 #include "DataPoint.h"
 #include "DataSet.h"
 #include "Cluster.h"
+#include "RandomInitialiser.h"
 
 #include <cmath>
 #include <iostream>
+#include <random>
 #include <stdexcept>
 #include <vector>
 
@@ -25,6 +27,44 @@ void check(bool condition, const char* description) {
         throw std::runtime_error(description);
     }
     std::cout << "PASS: " << description << '\n';
+}
+
+bool allFromDataset(const std::vector<DataPoint>& centres, const DataSet& dataset) {
+    for (const DataPoint& centre : centres) {
+        bool found = false;
+        for (const DataPoint& point : dataset.getPoints()) {
+            if (hasCoordinates(centre, point.getFeatures())) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool haveDistinctCoordinates(const std::vector<DataPoint>& points) {
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        for (std::size_t j = i + 1; j < points.size(); ++j) {
+            if (hasCoordinates(points[i], points[j].getFeatures())) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool rejectsInitialisation(const IInitialiser& initialiser,
+                           const DataSet& dataset, std::size_t k,
+                           std::mt19937& rng) {
+    try {
+        initialiser.initialise(dataset, k, rng);
+    } catch (const std::invalid_argument&) {
+        return true;
+    }
+    return false;
 }
 
 int main() {
@@ -100,5 +140,61 @@ int main() {
     }
 
     std::cout << "All milestone-2 checks passed.\n";
+
+    try {
+        RandomInitialiser randomInitialiser;
+        const IInitialiser& initialiser = randomInitialiser;
+        std::mt19937 rng(42);
+        const std::size_t k = 2;
+        const std::vector<DataPoint> centres = initialiser.initialise(dataset, k, rng);
+        check(centres.size() == k && allFromDataset(centres, dataset),
+              "Base-reference call returns k input points");
+        check(haveDistinctCoordinates(centres),
+              "Unique input coordinates are selected without repetition");
+
+        std::mt19937 firstRng(12345);
+        std::mt19937 secondRng(12345);
+        const std::vector<DataPoint> firstCentres =
+            initialiser.initialise(dataset, k, firstRng);
+        const std::vector<DataPoint> secondCentres =
+            initialiser.initialise(dataset, k, secondRng);
+        bool sameOrder = firstCentres.size() == k && secondCentres.size() == k;
+        for (std::size_t i = 0; sameOrder && i < k; ++i) {
+            sameOrder = hasCoordinates(firstCentres[i], secondCentres[i].getFeatures());
+        }
+        check(sameOrder, "Fresh generators with the same seed give the same ordered centres");
+
+        const std::vector<DataPoint> single = initialiser.initialise(dataset, 1, rng);
+        check(single.size() == 1 && allFromDataset(single, dataset),
+              "k=1 returns one input point");
+        const std::vector<DataPoint> all =
+            initialiser.initialise(dataset, dataset.size(), rng);
+        check(all.size() == dataset.size() && allFromDataset(all, dataset)
+                  && haveDistinctCoordinates(all),
+              "k=dataset.size() returns every input point once");
+
+        DataSet emptyDataset;
+        check(rejectsInitialisation(initialiser, emptyDataset, 1, rng),
+              "Empty dataset is rejected");
+        check(rejectsInitialisation(initialiser, dataset, 0, rng),
+              "k=0 is rejected");
+        check(rejectsInitialisation(initialiser, dataset, dataset.size() + 1, rng),
+              "k larger than dataset size is rejected");
+
+        DataSet duplicates;
+        duplicates.addPoint(DataPoint({5.0, 5.0}));
+        duplicates.addPoint(DataPoint({5.0, 5.0}));
+        duplicates.addPoint(DataPoint({5.0, 5.0}));
+        const std::vector<DataPoint> duplicateCentres =
+            initialiser.initialise(duplicates, duplicates.size(), rng);
+        check(duplicateCentres.size() == duplicates.size()
+                  && allFromDataset(duplicateCentres, duplicates),
+              "Identical coordinates are accepted for valid k");
+    } catch (const std::exception& error) {
+        std::cerr << "FAIL: " << error.what() << '\n';
+        return 1;
+    }
+
+    std::cout << "All milestone-3 checks passed.\n";
     return 0;
 }
