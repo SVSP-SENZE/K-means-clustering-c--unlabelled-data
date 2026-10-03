@@ -221,3 +221,56 @@ different initializer strategies to produce different results.
 Not executed: statistical frequency testing of sampling probabilities, deliberate
 check-failure injection, or the earlier proposed standalone DataPoint/DataSet
 checks. The milestone-4 core arithmetic-overflow paths remain separately untested.
+
+## Executed during milestone 6
+
+```powershell
+g++ -std=c++17 -Wall -Wextra -Wpedantic DataPoint.cpp DataSet.cpp Cluster.cpp RandomInitialiser.cpp KMeansPlusPlusInitialiser.cpp KMeans.cpp main.cpp -o MiniCluster.exe
+.\MiniCluster.exe
+```
+
+The first compilation exited with code 0 and no warnings. Execution exited with
+code 0; prior milestone output and checks were preserved. New actual output:
+
+```text
+Expected prediction error: Cannot predict before a successful fit.
+PASS: Prediction and inertia reject an unfitted model
+PASS: Failed first fit leaves the model unfitted
+PASS: k=1 gives the overall mean (4.5,5.5)
+PASS: One-cluster inertia matches 32.5 + 18.5 + 18.5 + 32.5 = 102
+PASS: Two-cluster inertia matches 1 + 1 + 1 + 1 = 4
+PASS: predict() assigns obvious nearby points correctly
+PASS: Prediction ties choose the lowest cluster index
+Expected dimension error: Prediction point dimension must match the fitted model.
+PASS: Prediction rejects a dimension mismatch
+PASS: Predictions preserve centroids, members, inertia, and stopping metadata
+Milestone-6 inertia: k=1 -> 102; k=2 -> 4
+Predicted indices: (1,2.2) -> 0; (8,9.2) -> 1
+PASS: Rejected refit preserves the successful model and its predictions
+PASS: Failure during assignment also preserves the previous fitted model
+PASS: Repeated fits replace old data and dimensions without accumulating members
+PASS: Early-stop inertia uses reported memberships, not new predictions
+PASS: Prediction distance overflow is rejected without changing results
+PASS: Inertia sum overflow raises an error while the fitted model remains usable
+All milestone-6 checks passed.
+```
+
+Fifteen new checks retain the 1e-9 numerical tolerance and nonzero failure handling.
+Snapshots compare centroids, member contents/order, inertia, iteration count, and
+stopping reason after predictions and failed refits. A replacement dataset has
+three 3D points rather than four 2D points; repeated fits retain exactly three
+members, means (1,1,1)/(10,10,10), and inertia 6.
+
+Hand calculations: k=1 has mean (4.5,5.5), with squared errors 32.5, 18.5, 18.5,
+32.5 summing to 102. The fixed two-cluster result has four squared errors of 1,
+summing to 4. After the one-iteration [0,2,3,10] fit, reported members [0] and
+[2,3,10] have means 0 and 5, giving inertia 0+9+4+25=38; predict(2) returns 0
+without moving that stored member out of cluster 1.
+
+Executed numerical failure paths include overflow during fit assignment, overflow
+during prediction, and overflow while summing otherwise finite inertia terms.
+The latter uses [-8e153,8e153,-8e153,8e153] with initial mean 0.
+
+Not executed: deliberate self-check failure injection, centroid-update/movement
+overflow, allocation failures, or the previously proposed standalone DataPoint/
+DataSet edge-case checks. Earlier milestone testing notes are historical records.

@@ -14,7 +14,7 @@ features and report design deviations. Do not push to GitHub without a request.
 | DataPoint | Own one numerical feature vector and calculate squared distance | Implemented in milestone 1 |
 | DataSet | Own points of a consistent dimension | Implemented in milestone 1 |
 | Cluster | Own a centroid and assigned members | Implemented in milestone 2 |
-| KMeans | Coordinate clustering; prediction is future scope | fit and results implemented in milestone 4 |
+| KMeans | Coordinate clustering, inspect results, and predict cluster indices | fit/results in milestone 4; inertia/prediction in milestone 6 |
 | IInitialiser | Define the centroid-selection interface | Implemented in milestone 3 |
 | RandomInitialiser | Select random initial centroids | Implemented in milestone 3 |
 | KMeansPlusPlusInitialiser | Select initial centroids using K-Means++ | Implemented in milestone 5 |
@@ -142,3 +142,36 @@ distance arithmetic. Prediction and KMeansPlusPlusInitialiser remain future work
 
 No specification deviations. Weight scaling and explicit overflow rejection are
 numerical safeguards. Prediction remains future scope.
+
+## Milestone 6 decisions
+
+- Two const operations extend KMeans: getInertia() returns double and
+  predict(const DataPoint&) returns std::size_t. Existing const result getters
+  remain the inspection API; no mutable access or redundant fitted flag is added.
+- Inertia is calculated on demand by summing squared distances from each reported
+  member to its reported centroid. Empty clusters contribute zero. It is not
+  recomputed through predict(), and no cached value can become stale after refit.
+  Cost is proportional to the number of stored points times their dimension.
+- predict() compares squared distances to learned centroids and chooses the
+  lowest index on ties, consistently with fit(). It neither retrains nor adds
+  the input point to membership. The result is a zero-based cluster index, not
+  a known semantic class label. Indices can change between fits/initializers.
+- Before any successful fit, both operations throw std::logic_error with a clear
+  message. Prediction dimension mismatch throws std::invalid_argument against
+  the most recently fitted dimension. Non-finite prediction distance or inertia
+  sum throws std::overflow_error without changing model state.
+- Failure policy is unchanged and now explicitly tested: an unsuccessful first
+  fit leaves no clusters, zero iterations, and NotFitted status. A failed refit
+  preserves all previous successful results, metadata, inertia, and prediction
+  availability. This also applies to failure during assignment, not just input
+  validation. fit() continues to build locally and publish only on success.
+- Successful refits replace clusters and memberships, including when the new
+  dataset has a different size or dimension. They do not append old observations.
+- A successful fit means a completed tolerance/iteration-limit run, not an exact
+  assignment fixed point. After an early stop, predict(member) may differ from
+  its reported membership; inertia intentionally measures the reported grouping.
+- Inertia overflow is an inspection error: a completed fit can remain usable for
+  prediction even if its total squared error exceeds the range of double.
+
+No specification deviations. The assignment/update loop and initializer
+ownership are unchanged. Previous milestone entries describe their historical scope.

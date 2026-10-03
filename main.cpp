@@ -89,6 +89,29 @@ bool hasExpectedDemoClusters(const KMeans& model) {
             && hasCoordinates(clusters[0].getCentroid(), {8.0, 9.0}));
 }
 
+bool sameFittedResults(const KMeans& first, const KMeans& second) {
+    if (first.getIterationCount() != second.getIterationCount()
+        || first.getStoppingReason() != second.getStoppingReason()
+        || first.getClusters().size() != second.getClusters().size()
+        || !(std::abs(first.getInertia() - second.getInertia()) < 1e-9)) {
+        return false;
+    }
+    for (std::size_t i = 0; i < first.getClusters().size(); ++i) {
+        const Cluster& left = first.getClusters()[i];
+        const Cluster& right = second.getClusters()[i];
+        if (left.size() != right.size()
+            || !hasCoordinates(left.getCentroid(), right.getCentroid().getFeatures())) {
+            return false;
+        }
+        for (std::size_t j = 0; j < left.size(); ++j) {
+            if (!hasCoordinates(left.getMembers()[j], right.getMembers()[j].getFeatures())) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 bool rejectsInitialisation(const IInitialiser& initialiser,
                            const DataSet& dataset, std::size_t k,
                            std::mt19937& rng) {
@@ -503,5 +526,148 @@ int main() {
     }
 
     std::cout << "All milestone-5 checks passed.\n";
+
+    try {
+        KMeans model(2, 100, 1e-6, 42);
+        bool predictionRejected = false;
+        try {
+            model.predict(first);
+        } catch (const std::logic_error& error) {
+            predictionRejected = true;
+            std::cout << "Expected prediction error: " << error.what() << '\n';
+        }
+        bool inertiaRejected = false;
+        try {
+            model.getInertia();
+        } catch (const std::logic_error&) {
+            inertiaRejected = true;
+        }
+        check(predictionRejected && inertiaRejected,
+              "Prediction and inertia reject an unfitted model");
+
+        FixedInitialiser fixed({first, third});
+        DataSet empty;
+        bool firstFitRejected = rejectsFit(model, empty, fixed);
+        predictionRejected = false;
+        try {
+            model.predict(first);
+        } catch (const std::logic_error&) {
+            predictionRejected = true;
+        }
+        check(firstFitRejected && predictionRejected && model.getClusters().empty()
+                  && model.getIterationCount() == 0
+                  && model.getStoppingReason() == KMeans::StopReason::NotFitted,
+              "Failed first fit leaves the model unfitted");
+
+        RandomInitialiser randomInitialiser;
+        KMeans oneCluster(1, 100, 0.0, 42);
+        oneCluster.fit(dataset, randomInitialiser);
+        check(oneCluster.getClusters().size() == 1 && oneCluster.getClusters()[0].size() == 4
+                  && hasCoordinates(oneCluster.getClusters()[0].getCentroid(), {4.5, 5.5}),
+              "k=1 gives the overall mean (4.5,5.5)");
+        check(std::abs(oneCluster.getInertia() - 102.0) < 1e-9,
+              "One-cluster inertia matches 32.5 + 18.5 + 18.5 + 32.5 = 102");
+
+        model.fit(dataset, fixed);
+        check(std::abs(model.getInertia() - 4.0) < 1e-9,
+              "Two-cluster inertia matches 1 + 1 + 1 + 1 = 4");
+        const KMeans snapshot = model;
+        const KMeans& readOnlyModel = model;
+        check(readOnlyModel.predict(DataPoint({1.0, 2.2})) == 0
+                  && readOnlyModel.predict(DataPoint({8.0, 9.2})) == 1,
+              "predict() assigns obvious nearby points correctly");
+        check(readOnlyModel.predict(DataPoint({4.5, 5.5})) == 0,
+              "Prediction ties choose the lowest cluster index");
+        bool mismatchRejected = false;
+        try {
+            readOnlyModel.predict(DataPoint({1.0, 2.0, 3.0}));
+        } catch (const std::invalid_argument& error) {
+            mismatchRejected = true;
+            std::cout << "Expected dimension error: " << error.what() << '\n';
+        }
+        check(mismatchRejected, "Prediction rejects a dimension mismatch");
+        check(sameFittedResults(model, snapshot),
+              "Predictions preserve centroids, members, inertia, and stopping metadata");
+        std::cout << "Milestone-6 inertia: k=1 -> " << oneCluster.getInertia()
+                  << "; k=2 -> " << model.getInertia() << '\n';
+        std::cout << "Predicted indices: (1,2.2) -> " << model.predict(DataPoint({1.0, 2.2}))
+                  << "; (8,9.2) -> " << model.predict(DataPoint({8.0, 9.2})) << '\n';
+
+        check(rejectsFit(model, empty, fixed) && sameFittedResults(model, snapshot)
+                  && model.predict(first) == 0,
+              "Rejected refit preserves the successful model and its predictions");
+        DataSet extreme;
+        extreme.addPoint(DataPoint({-1e308}));
+        extreme.addPoint(DataPoint({1e308}));
+        FixedInitialiser extremeStarts({DataPoint({-1e308}), DataPoint({1e308})});
+        bool fitOverflowRejected = false;
+        try {
+            model.fit(extreme, extremeStarts);
+        } catch (const std::overflow_error&) {
+            fitOverflowRejected = true;
+        }
+        check(fitOverflowRejected && sameFittedResults(model, snapshot)
+                  && model.predict(third) == 1,
+              "Failure during assignment also preserves the previous fitted model");
+
+        DataSet replacementData;
+        replacementData.addPoint(DataPoint({0.0, 0.0, 0.0}));
+        replacementData.addPoint(DataPoint({2.0, 2.0, 2.0}));
+        replacementData.addPoint(DataPoint({10.0, 10.0, 10.0}));
+        FixedInitialiser replacementStarts({DataPoint({0.0, 0.0, 0.0}),
+                                           DataPoint({10.0, 10.0, 10.0})});
+        model.fit(replacementData, replacementStarts);
+        const KMeans replacementSnapshot = model;
+        model.fit(replacementData, replacementStarts);
+        check(sameFittedResults(model, replacementSnapshot) && model.getClusters().size() == 2
+                  && model.getClusters()[0].size() == 2 && model.getClusters()[1].size() == 1
+                  && hasCoordinates(model.getClusters()[0].getCentroid(), {1.0, 1.0, 1.0})
+                  && hasCoordinates(model.getClusters()[1].getCentroid(), {10.0, 10.0, 10.0})
+                  && std::abs(model.getInertia() - 6.0) < 1e-9
+                  && model.predict(DataPoint({9.0, 9.0, 9.0})) == 1,
+              "Repeated fits replace old data and dimensions without accumulating members");
+
+        DataSet earlyData;
+        for (double value : {0.0, 2.0, 3.0, 10.0}) {
+            earlyData.addPoint(DataPoint({value}));
+        }
+        FixedInitialiser earlyStarts({DataPoint({0.0}), DataPoint({2.0})});
+        KMeans earlyModel(2, 1, 0.0, 42);
+        earlyModel.fit(earlyData, earlyStarts);
+        check(std::abs(earlyModel.getInertia() - 38.0) < 1e-9
+                  && earlyModel.predict(DataPoint({2.0})) == 0
+                  && hasCoordinates(earlyModel.getClusters()[1].getMembers()[0], {2.0}),
+              "Early-stop inertia uses reported memberships, not new predictions");
+
+        bool predictionOverflowRejected = false;
+        try {
+            earlyModel.predict(DataPoint({1e308}));
+        } catch (const std::overflow_error&) {
+            predictionOverflowRejected = true;
+        }
+        check(predictionOverflowRejected && std::abs(earlyModel.getInertia() - 38.0) < 1e-9,
+              "Prediction distance overflow is rejected without changing results");
+
+        DataSet largeInertia;
+        for (double value : {-8e153, 8e153, -8e153, 8e153}) {
+            largeInertia.addPoint(DataPoint({value}));
+        }
+        FixedInitialiser origin({DataPoint({0.0})});
+        KMeans largeModel(1, 10, 0.0, 42);
+        largeModel.fit(largeInertia, origin);
+        bool inertiaOverflowRejected = false;
+        try {
+            largeModel.getInertia();
+        } catch (const std::overflow_error&) {
+            inertiaOverflowRejected = true;
+        }
+        check(inertiaOverflowRejected && largeModel.predict(DataPoint({0.0})) == 0,
+              "Inertia sum overflow raises an error while the fitted model remains usable");
+    } catch (const std::exception& error) {
+        std::cerr << "FAIL: " << error.what() << '\n';
+        return 1;
+    }
+
+    std::cout << "All milestone-6 checks passed.\n";
     return 0;
 }

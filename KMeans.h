@@ -18,6 +18,8 @@ public:
     const std::vector<Cluster>& getClusters() const;
     std::size_t getIterationCount() const;
     StopReason getStoppingReason() const;
+    double getInertia() const;
+    std::size_t predict(const DataPoint& point) const;
 
 private:
     std::size_t k;

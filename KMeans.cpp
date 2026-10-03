@@ -102,3 +102,44 @@ std::size_t KMeans::getIterationCount() const {
 KMeans::StopReason KMeans::getStoppingReason() const {
     return stoppingReason;
 }
+
+double KMeans::getInertia() const {
+    if (stoppingReason == StopReason::NotFitted) {
+        throw std::logic_error("Cannot inspect inertia before a successful fit.");
+    }
+
+    // Use reported memberships, which may differ from fresh predictions after an early stop.
+    double inertia = 0.0;
+    for (const Cluster& cluster : clusters) {
+        for (const DataPoint& member : cluster.getMembers()) {
+            inertia += member.squaredDistanceTo(cluster.getCentroid());
+            if (!std::isfinite(inertia)) {
+                throw std::overflow_error("Inertia is not finite.");
+            }
+        }
+    }
+    return inertia;
+}
+
+std::size_t KMeans::predict(const DataPoint& point) const {
+    if (stoppingReason == StopReason::NotFitted) {
+        throw std::logic_error("Cannot predict before a successful fit.");
+    }
+    if (point.dimension() != clusters.front().getCentroid().dimension()) {
+        throw std::invalid_argument("Prediction point dimension must match the fitted model.");
+    }
+
+    std::size_t nearest = 0;
+    double nearestDistance = 0.0;
+    for (std::size_t i = 0; i < clusters.size(); ++i) {
+        double distance = point.squaredDistanceTo(clusters[i].getCentroid());
+        if (!std::isfinite(distance)) {
+            throw std::overflow_error("Prediction squared distance is not finite.");
+        }
+        if (i == 0 || distance < nearestDistance) {
+            nearest = i;
+            nearestDistance = distance;
+        }
+    }
+    return nearest;
+}

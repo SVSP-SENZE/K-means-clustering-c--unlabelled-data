@@ -116,3 +116,25 @@ the demo seed 42. TESTING.md contains the actual commands and new output.
 The assistant added common weight scaling and non-finite distance rejection,
 with executed checks for both numerical cases. KMeans.h/.cpp were not edited.
 No GitHub push or independent human validation is claimed.
+
+## Milestone 6
+
+The user requested inertia from reported memberships, prediction of the nearest
+learned centroid index, clear pre-fit/dimension errors, reliable repeated fits,
+and documented fitted-state behaviour on failures. They requested mean, inertia,
+prediction, immutability, and repeated-membership checks and an explanation of
+cluster indices versus semantic labels.
+
+The assistant read the existing source and documentation and checked for project
+instructions. It added getInertia() const and predict() const to KMeans, keeping
+the existing fit implementation and its publish-on-success policy. It extended
+main.cpp with fifteen checks, including snapshots for nonmutation and failed
+refits, changed dataset dimensions on refit, early-stop membership-based inertia,
+and numerical overflow handling.
+
+The first C++17 warning-enabled build succeeded without warnings; execution
+returned 0 with all prior and new checks passing. The observed inertia was 102
+for k=1 and 4 for k=2. Predictions for (1,2.2) and (8,9.2) returned 0 and 1 in
+the fixed-centre demo. DESIGN.md and TESTING.md record the policy and actual
+results. The assistant updated these records and this AI-usage log; no GitHub
+push or independent human testing is claimed.
