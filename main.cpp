@@ -3,6 +3,7 @@
 #include "Cluster.h"
 #include "RandomInitialiser.h"
 #include "KMeans.h"
+#include "KMeansPlusPlusInitialiser.h"
 
 #include <cmath>
 #include <iostream>
@@ -56,6 +57,36 @@ bool haveDistinctCoordinates(const std::vector<DataPoint>& points) {
         }
     }
     return true;
+}
+
+// Match each returned centre to one unused observation, including duplicates.
+bool respectsInputMultiplicities(const std::vector<DataPoint>& centres, const DataSet& dataset) {
+    std::vector<bool> matched(dataset.size(), false);
+    for (const DataPoint& centre : centres) {
+        bool found = false;
+        for (std::size_t i = 0; i < dataset.size(); ++i) {
+            if (!matched[i] && hasCoordinates(centre, dataset.getPoints()[i].getFeatures())) {
+                matched[i] = true;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool hasExpectedDemoClusters(const KMeans& model) {
+    const std::vector<Cluster>& clusters = model.getClusters();
+    if (clusters.size() != 2 || clusters[0].size() != 2 || clusters[1].size() != 2) {
+        return false;
+    }
+    return (hasCoordinates(clusters[0].getCentroid(), {1.0, 2.0})
+            && hasCoordinates(clusters[1].getCentroid(), {8.0, 9.0}))
+        || (hasCoordinates(clusters[1].getCentroid(), {1.0, 2.0})
+            && hasCoordinates(clusters[0].getCentroid(), {8.0, 9.0}));
 }
 
 bool rejectsInitialisation(const IInitialiser& initialiser,
@@ -378,5 +409,99 @@ int main() {
     }
 
     std::cout << "All milestone-4 checks passed.\n";
+
+    try {
+        KMeansPlusPlusInitialiser plusPlus;
+        const IInitialiser& initialiser = plusPlus;
+        std::mt19937 rng(42);
+        const std::vector<DataPoint> centres = initialiser.initialise(dataset, 2, rng);
+        check(centres.size() == 2 && allFromDataset(centres, dataset)
+                  && haveDistinctCoordinates(centres),
+              "K-Means++ selects two distinct input observations on ordinary data");
+
+        const std::vector<DataPoint> single = initialiser.initialise(dataset, 1, rng);
+        check(single.size() == 1 && allFromDataset(single, dataset),
+              "K-Means++ accepts k=1");
+        const std::vector<DataPoint> all = initialiser.initialise(dataset, dataset.size(), rng);
+        check(all.size() == dataset.size() && respectsInputMultiplicities(all, dataset)
+                  && haveDistinctCoordinates(all),
+              "K-Means++ accepts k=n and returns every unique observation once");
+
+        DataSet repeated;
+        repeated.addPoint(first);
+        repeated.addPoint(first);
+        repeated.addPoint(third);
+        repeated.addPoint(third);
+        repeated.addPoint(third);
+        const std::vector<DataPoint> repeatedCentres =
+            initialiser.initialise(repeated, repeated.size(), rng);
+        check(repeatedCentres.size() == repeated.size()
+                  && respectsInputMultiplicities(repeatedCentres, repeated)
+                  && !hasCoordinates(repeatedCentres[0], repeatedCentres[1].getFeatures()),
+              "Repeated coordinates preserve multiplicities and select positive weights first");
+
+        DataSet identical;
+        for (std::size_t i = 0; i < 4; ++i) {
+            identical.addPoint(DataPoint({5.0, 5.0}));
+        }
+        const std::vector<DataPoint> identicalCentres =
+            initialiser.initialise(identical, identical.size(), rng);
+        check(identicalCentres.size() == identical.size()
+                  && respectsInputMultiplicities(identicalCentres, identical),
+              "All-identical data uses zero-weight fallback through k=n");
+
+        std::mt19937 firstRng(12345);
+        std::mt19937 secondRng(12345);
+        const std::vector<DataPoint> firstCentres =
+            initialiser.initialise(repeated, repeated.size(), firstRng);
+        const std::vector<DataPoint> secondCentres =
+            initialiser.initialise(repeated, repeated.size(), secondRng);
+        bool sameOrder = firstCentres.size() == repeated.size()
+            && secondCentres.size() == repeated.size();
+        for (std::size_t i = 0; sameOrder && i < firstCentres.size(); ++i) {
+            sameOrder = hasCoordinates(firstCentres[i], secondCentres[i].getFeatures());
+        }
+        check(sameOrder, "K-Means++ repeats ordered centres with fresh equal seeds");
+
+        DataSet empty;
+        check(rejectsInitialisation(initialiser, empty, 1, rng)
+                  && rejectsInitialisation(initialiser, dataset, 0, rng)
+                  && rejectsInitialisation(initialiser, dataset, dataset.size() + 1, rng),
+              "K-Means++ rejects empty data, k=0, and k greater than n");
+
+        // These distances are finite, but their unscaled sum would overflow.
+        DataSet largeWeights;
+        for (double value : {-6e153, -6e153, 6e153, 6e153}) {
+            largeWeights.addPoint(DataPoint({value}));
+        }
+        const std::vector<DataPoint> largeCentres = initialiser.initialise(largeWeights, 4, rng);
+        check(largeCentres.size() == 4 && respectsInputMultiplicities(largeCentres, largeWeights),
+              "Large finite weights are scaled safely before sampling");
+
+        DataSet overflowData;
+        overflowData.addPoint(DataPoint({-1e308}));
+        overflowData.addPoint(DataPoint({1e308}));
+        bool overflowRejected = false;
+        try {
+            initialiser.initialise(overflowData, 2, rng);
+        } catch (const std::overflow_error&) {
+            overflowRejected = true;
+        }
+        check(overflowRejected, "Non-finite squared distances are rejected");
+
+        RandomInitialiser randomInitialiser;
+        KMeans sharedModel(2, 100, 1e-6, 42);
+        sharedModel.fit(dataset, randomInitialiser);
+        check(hasExpectedDemoClusters(sharedModel), "Same fit() accepts RandomInitialiser");
+        printResults("Milestone-5 random demo (seed 42):", sharedModel);
+        sharedModel.fit(dataset, plusPlus);
+        check(hasExpectedDemoClusters(sharedModel), "Same fit() accepts KMeansPlusPlusInitialiser");
+        printResults("Milestone-5 K-Means++ demo (seed 42):", sharedModel);
+    } catch (const std::exception& error) {
+        std::cerr << "FAIL: " << error.what() << '\n';
+        return 1;
+    }
+
+    std::cout << "All milestone-5 checks passed.\n";
     return 0;
 }

@@ -168,3 +168,56 @@ Both the iteration-limit and loose-tolerance stop paths are exercised.
 Not executed: deliberate check-failure injection, arithmetic-overflow cases, or
 non-finite initializer output (normal DataPoint construction already rejects it).
 Previously proposed standalone DataPoint/DataSet checks remain unexecuted.
+
+## Executed during milestone 5
+
+```powershell
+g++ -std=c++17 -Wall -Wextra -Wpedantic DataPoint.cpp DataSet.cpp Cluster.cpp RandomInitialiser.cpp KMeansPlusPlusInitialiser.cpp KMeans.cpp main.cpp -o MiniCluster.exe
+.\MiniCluster.exe
+```
+
+Compilation exited with code 0 and no warnings on the first attempt. Execution
+exited with code 0; all earlier demonstrations and checks passed unchanged.
+Additional actual output:
+
+```text
+PASS: K-Means++ selects two distinct input observations on ordinary data
+PASS: K-Means++ accepts k=1
+PASS: K-Means++ accepts k=n and returns every unique observation once
+PASS: Repeated coordinates preserve multiplicities and select positive weights first
+PASS: All-identical data uses zero-weight fallback through k=n
+PASS: K-Means++ repeats ordered centres with fresh equal seeds
+PASS: K-Means++ rejects empty data, k=0, and k greater than n
+PASS: Large finite weights are scaled safely before sampling
+PASS: Non-finite squared distances are rejected
+PASS: Same fit() accepts RandomInitialiser
+Milestone-5 random demo (seed 42):
+Iterations: 2; stop: tolerance reached
+Cluster 0: centroid (1,2), size 2
+Cluster 1: centroid (8,9), size 2
+PASS: Same fit() accepts KMeansPlusPlusInitialiser
+Milestone-5 K-Means++ demo (seed 42):
+Iterations: 2; stop: tolerance reached
+Cluster 0: centroid (1,2), size 2
+Cluster 1: centroid (8,9), size 2
+All milestone-5 checks passed.
+```
+
+Eleven new checks use the existing 1e-9 coordinate tolerance and nonzero failure
+handling. The repeated-coordinate dataset has two copies of (1,1) and three of
+(8,8); k=n checks every observation is represented with its original multiplicity,
+and the first two returned coordinates differ while positive weights exist.
+The all-identical dataset has four copies of (5,5), also with k=n. Returned copies
+cannot reveal which identical index was selected; distinct indices are enforced
+by the implementation's selected-index flags, while tests check multiplicities.
+
+The large-weight case uses [-6e153, -6e153, 6e153, 6e153]: individual squared
+distances are finite but the unscaled weight sum can overflow. A separate
+[-1e308, 1e308] case executes the squared-distance overflow rejection path.
+Both strategies' end-to-end results are checked against the expected means and
+sizes without assuming cluster order. No test requires different seeds or
+different initializer strategies to produce different results.
+
+Not executed: statistical frequency testing of sampling probabilities, deliberate
+check-failure injection, or the earlier proposed standalone DataPoint/DataSet
+checks. The milestone-4 core arithmetic-overflow paths remain separately untested.

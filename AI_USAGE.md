@@ -96,3 +96,23 @@ Exact commands and new output are recorded in TESTING.md.
 The assistant updated the design, testing, and AI-usage records. No prediction,
 k-means++ implementation, or GitHub push was performed. No independent human
 testing or answers to the milestone-4 understanding questions are claimed.
+
+## Milestone 5
+
+The user requested KMeansPlusPlusInitialiser through the existing interface:
+uniform first-index sampling, nearest squared-distance weights, proportional
+sampling without repeated indices, and a generator-driven zero-weight fallback.
+They requested ordinary, repeated-coordinate, all-identical, k=1, and k=n checks,
+plus a demonstration that both strategies use the same unchanged fit() method.
+
+The assistant read the existing source and documentation and checked for project
+instructions. It implemented KMeansPlusPlusInitialiser.h/.cpp, extended main.cpp
+with eleven checks and a shared-model demo, and updated DESIGN.md, TESTING.md,
+and this record. The first warning-enabled C++17 build succeeded without warnings;
+the executable exited with code 0 and all earlier and new checks passed. Both
+strategies produced centres (1,2) and (8,9), sizes 2 and 2, in two iterations for
+the demo seed 42. TESTING.md contains the actual commands and new output.
+
+The assistant added common weight scaling and non-finite distance rejection,
+with executed checks for both numerical cases. KMeans.h/.cpp were not edited.
+No GitHub push or independent human validation is claimed.

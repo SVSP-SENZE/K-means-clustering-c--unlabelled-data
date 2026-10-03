@@ -17,7 +17,7 @@ features and report design deviations. Do not push to GitHub without a request.
 | KMeans | Coordinate clustering; prediction is future scope | fit and results implemented in milestone 4 |
 | IInitialiser | Define the centroid-selection interface | Implemented in milestone 3 |
 | RandomInitialiser | Select random initial centroids | Implemented in milestone 3 |
-| KMeansPlusPlusInitialiser | Select initial centroids using K-Means++ | Not implemented |
+| KMeansPlusPlusInitialiser | Select initial centroids using K-Means++ | Implemented in milestone 5 |
 
 The interface filename is **IInitializer.h** and its class name is
 **IInitialiser**. Do not create a duplicate interface file.
@@ -115,3 +115,30 @@ unimplemented. The milestone-1 and milestone-2 demonstrations are preserved.
 No requested milestone-4 functionality was omitted. Implementation choices beyond
 the minimum are preserving results after failed fits and rejecting non-finite
 distance arithmetic. Prediction and KMeansPlusPlusInitialiser remain future work.
+
+## Milestone 5 decisions
+
+- KMeansPlusPlusInitialiser publicly implements IInitialiser from IInitializer.h.
+  It uses the same empty-dataset and invalid-k validation as RandomInitialiser.
+- The first index is sampled uniformly with std::uniform_int_distribution.
+  Selected indices are tracked separately from coordinates, allowing duplicate
+  observations while preventing selection of the same index twice.
+- For each subsequent centre, distances to all selected centres are recomputed
+  for each unselected observation. The minimum squared distance is its weight.
+  This direct implementation prioritizes readability over cached distances.
+- Positive weights and their dataset indices are stored in parallel vectors.
+  std::discrete_distribution samples a position proportionally to its weight;
+  that position is mapped back to the dataset index. Zero weights are excluded
+  while any positive weight remains.
+- If every remaining weight is zero, sample uniformly from all unselected
+  indices using the supplied generator. No internal seeding occurs in either
+  branch. Returned points are copies.
+- Positive weights are divided by their maximum before sampling. A common scale
+  preserves mathematical proportions and prevents overflow of the weight sum.
+  Individual non-finite squared distances throw std::overflow_error, consistent
+  with KMeans. Sampling remains subject to floating-point precision.
+- main.cpp demonstrates the same KMeans object calling fit(dataset, random)
+  and then fit(dataset, plusPlus). KMeans.h/.cpp and the core loop are unchanged.
+
+No specification deviations. Weight scaling and explicit overflow rejection are
+numerical safeguards. Prediction remains future scope.
