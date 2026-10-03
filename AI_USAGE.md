@@ -75,3 +75,24 @@ temporary const-reference use by future KMeans::fit(), and updated testing and
 usage records. KMeans and k-means++ were not implemented. No duplicate interface
 file or GitHub push was made. This record does not claim independent human
 testing or answers to the milestone-3 understanding questions.
+
+## Milestone 4 (2026-10-03)
+
+The user requested KMeans configuration, fit with a borrowed initializer, local
+seeded generators, input/output validation, nearest-centroid assignments with
+lowest-index ties, centroid updates, stopping metadata, and consistent completed
+iteration results. They supplied the four-point expected-result example and
+requested a random-initializer demo, actual compilation/execution, and an
+explanation of one iteration.
+
+The assistant read the existing source and documentation and checked for project
+instructions. It implemented KMeans.h/.cpp, added a test-only FixedInitialiser and
+thirteen milestone-4 checks plus result printing to main.cpp, and preserved prior
+demonstrations. The warning-enabled C++17 build succeeded without warnings on the
+first attempt; the executable exited with code 0 and all checks passed. Both
+printed demos yielded centres (1,2) and (8,9), sizes 2 and 2, after two iterations.
+Exact commands and new output are recorded in TESTING.md.
+
+The assistant updated the design, testing, and AI-usage records. No prediction,
+k-means++ implementation, or GitHub push was performed. No independent human
+testing or answers to the milestone-4 understanding questions are claimed.

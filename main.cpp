@@ -2,9 +2,11 @@
 #include "DataSet.h"
 #include "Cluster.h"
 #include "RandomInitialiser.h"
+#include "KMeans.h"
 
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <random>
 #include <stdexcept>
 #include <vector>
@@ -65,6 +67,66 @@ bool rejectsInitialisation(const IInitialiser& initialiser,
         return true;
     }
     return false;
+}
+
+// Test-only strategy: supplied centres also let us test invalid initializer output.
+class FixedInitialiser : public IInitialiser {
+private:
+    std::vector<DataPoint> centres;
+
+public:
+    explicit FixedInitialiser(const std::vector<DataPoint>& centres) : centres(centres) {}
+
+    std::vector<DataPoint> initialise(const DataSet&, std::size_t,
+                                      std::mt19937&) const override {
+        return centres;
+    }
+};
+
+bool rejectsConfiguration(std::size_t k, std::size_t iterations, double tolerance) {
+    try {
+        KMeans model(k, iterations, tolerance, 42);
+    } catch (const std::invalid_argument&) {
+        return true;
+    }
+    return false;
+}
+
+bool rejectsFit(KMeans& model, const DataSet& dataset, const IInitialiser& initialiser) {
+    try {
+        model.fit(dataset, initialiser);
+    } catch (const std::invalid_argument&) {
+        return true;
+    }
+    return false;
+}
+
+void printResults(const char* title, const KMeans& model) {
+    std::cout << title << '\n';
+    std::cout << "Iterations: " << model.getIterationCount() << "; stop: ";
+    switch (model.getStoppingReason()) {
+        case KMeans::StopReason::NotFitted:
+            std::cout << "not fitted\n";
+            break;
+        case KMeans::StopReason::ToleranceReached:
+            std::cout << "tolerance reached\n";
+            break;
+        case KMeans::StopReason::IterationLimit:
+            std::cout << "iteration limit\n";
+            break;
+    }
+    for (std::size_t i = 0; i < model.getClusters().size(); ++i) {
+        const Cluster& cluster = model.getClusters()[i];
+        std::cout << "Cluster " << i << ": centroid (";
+        const std::vector<double>& features = cluster.getCentroid().getFeatures();
+        for (std::size_t j = 0; j < features.size(); ++j) {
+            if (j != 0) {
+                std::cout << ',';
+            }
+            std::cout << features[j];
+        }
+        std::cout << "), size " << cluster.size() << '\n';
+    }
 }
 
 int main() {
@@ -196,5 +258,125 @@ int main() {
     }
 
     std::cout << "All milestone-3 checks passed.\n";
+
+    try {
+        FixedInitialiser fixed({first, third});
+        KMeans model(2, 100, 1e-6, 42);
+        check(model.getClusters().empty() && model.getIterationCount() == 0
+                  && model.getStoppingReason() == KMeans::StopReason::NotFitted,
+              "New KMeans reports not fitted");
+        model.fit(dataset, fixed);
+        check(model.getClusters().size() == 2
+                  && hasCoordinates(model.getClusters()[0].getCentroid(), {1.0, 2.0})
+                  && hasCoordinates(model.getClusters()[1].getCentroid(), {8.0, 9.0})
+                  && model.getClusters()[0].size() == 2 && model.getClusters()[1].size() == 2
+                  && model.getIterationCount() == 2
+                  && model.getStoppingReason() == KMeans::StopReason::ToleranceReached,
+              "Fixed centres reach (1,2) and (8,9), sizes 2 and 2, in two iterations");
+        printResults("Fixed-initializer demo:", model);
+
+        RandomInitialiser randomInitialiser;
+        KMeans randomModel(2, 100, 1e-6, 42);
+        randomModel.fit(dataset, randomInitialiser);
+        const std::vector<Cluster> firstRun = randomModel.getClusters();
+        const std::size_t firstCount = randomModel.getIterationCount();
+        randomModel.fit(dataset, randomInitialiser);
+        bool repeated = randomModel.getClusters().size() == firstRun.size()
+            && randomModel.getIterationCount() == firstCount;
+        for (std::size_t i = 0; repeated && i < firstRun.size(); ++i) {
+            repeated = hasCoordinates(randomModel.getClusters()[i].getCentroid(),
+                                      firstRun[i].getCentroid().getFeatures())
+                && randomModel.getClusters()[i].size() == firstRun[i].size();
+            for (std::size_t j = 0; repeated && j < firstRun[i].size(); ++j) {
+                repeated = hasCoordinates(randomModel.getClusters()[i].getMembers()[j],
+                                          firstRun[i].getMembers()[j].getFeatures());
+            }
+        }
+        check(repeated, "Repeated random fits restart the seeded generator and replace results");
+        printResults("Random-initializer demo (seed 42):", randomModel);
+
+        KMeans boundary(2, 1, 1.0, 42);
+        boundary.fit(dataset, fixed);
+        check(boundary.getIterationCount() == 1
+                  && boundary.getStoppingReason() == KMeans::StopReason::ToleranceReached,
+              "Movement equal to tolerance stops, including at the iteration limit");
+
+        DataSet fractional;
+        fractional.addPoint(DataPoint({0.75}));
+        FixedInitialiser zero({DataPoint({0.0})});
+        KMeans fractionalModel(1, 10, 0.6, 42);
+        fractionalModel.fit(fractional, zero);
+        check(fractionalModel.getIterationCount() == 2
+                  && hasCoordinates(fractionalModel.getClusters()[0].getCentroid(), {0.75}),
+              "Euclidean movement 0.75 exceeds tolerance 0.6");
+
+        FixedInitialiser duplicateStarts({first, first});
+        KMeans ties(2, 1, 0.0, 42);
+        ties.fit(dataset, duplicateStarts);
+        check(ties.getClusters()[0].size() == 4 && ties.getClusters()[1].size() == 0
+                  && hasCoordinates(ties.getClusters()[0].getCentroid(), {4.5, 5.5})
+                  && hasCoordinates(ties.getClusters()[1].getCentroid(), {1.0, 1.0}),
+              "Ties choose index 0; empty cluster preserves its centroid");
+
+        // Point 2 would change clusters if an extra reassignment were performed.
+        DataSet earlyData;
+        for (double value : {0.0, 2.0, 3.0, 10.0}) {
+            earlyData.addPoint(DataPoint({value}));
+        }
+        FixedInitialiser earlyStarts({DataPoint({0.0}), DataPoint({2.0})});
+        KMeans limited(2, 1, 0.0, 42);
+        limited.fit(earlyData, earlyStarts);
+        check(limited.getIterationCount() == 1
+                  && limited.getStoppingReason() == KMeans::StopReason::IterationLimit
+                  && limited.getClusters()[0].size() == 1 && limited.getClusters()[1].size() == 3
+                  && hasCoordinates(limited.getClusters()[0].getCentroid(), {0.0})
+                  && hasCoordinates(limited.getClusters()[1].getCentroid(), {5.0})
+                  && hasCoordinates(limited.getClusters()[1].getMembers()[0], {2.0}),
+              "Iteration-limit stop preserves the completed assignment/update pair");
+        KMeans looseTolerance(2, 10, 3.0, 42);
+        looseTolerance.fit(earlyData, earlyStarts);
+        check(looseTolerance.getIterationCount() == 1
+                  && looseTolerance.getStoppingReason() == KMeans::StopReason::ToleranceReached
+                  && looseTolerance.getClusters()[0].size() == 1
+                  && looseTolerance.getClusters()[1].size() == 3
+                  && hasCoordinates(looseTolerance.getClusters()[1].getCentroid(), {5.0}),
+              "Tolerance stop also preserves members without final reassignment");
+
+        DataSet data3D;
+        data3D.addPoint(DataPoint({1.0, 2.0, 3.0}));
+        data3D.addPoint(DataPoint({3.0, 4.0, 5.0}));
+        KMeans model3D(1, 10, 0.0, 42);
+        model3D.fit(data3D, randomInitialiser);
+        check(hasCoordinates(model3D.getClusters()[0].getCentroid(), {2.0, 3.0, 4.0})
+                  && model3D.getClusters()[0].size() == 2 && model3D.getIterationCount() == 2,
+              "3D fit with zero tolerance reaches the mean");
+
+        check(rejectsConfiguration(0, 10, 0.0) && rejectsConfiguration(2, 0, 0.0)
+                  && rejectsConfiguration(2, 10, -1.0)
+                  && rejectsConfiguration(2, 10, std::numeric_limits<double>::infinity())
+                  && rejectsConfiguration(2, 10, std::numeric_limits<double>::quiet_NaN()),
+              "Invalid k, iteration count, and tolerances are rejected");
+        DataSet empty;
+        KMeans tooMany(5, 10, 0.0, 42);
+        check(rejectsFit(model, empty, fixed) && rejectsFit(tooMany, dataset, fixed),
+              "Empty dataset and k greater than dataset size are rejected");
+        FixedInitialiser tooFew({first});
+        FixedInitialiser tooManyCentres({first, second, third});
+        FixedInitialiser wrongDimension({first, DataPoint({1.0, 2.0, 3.0})});
+        check(rejectsFit(model, dataset, tooFew) && rejectsFit(model, dataset, tooManyCentres)
+                  && rejectsFit(model, dataset, wrongDimension),
+              "Initializer output count and dimensions are validated");
+        check(model.getIterationCount() == 2
+                  && model.getStoppingReason() == KMeans::StopReason::ToleranceReached
+                  && model.getClusters()[0].size() == 2 && model.getClusters()[1].size() == 2
+                  && hasCoordinates(model.getClusters()[0].getCentroid(), {1.0, 2.0})
+                  && hasCoordinates(model.getClusters()[1].getCentroid(), {8.0, 9.0}),
+              "Rejected fits preserve the previous completed results");
+    } catch (const std::exception& error) {
+        std::cerr << "FAIL: " << error.what() << '\n';
+        return 1;
+    }
+
+    std::cout << "All milestone-4 checks passed.\n";
     return 0;
 }
