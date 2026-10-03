@@ -138,3 +138,27 @@ for k=1 and 4 for k=2. Predictions for (1,2.2) and (8,9.2) returned 0 and 1 in
 the fixed-centre demo. DESIGN.md and TESTING.md record the policy and actual
 results. The assistant updated these records and this AI-usage log; no GitHub
 push or independent human testing is claimed.
+
+## Milestone 7
+
+The user requested a documented strict headerless CSV input format, helpful
+validation errors and blank-line policy, a CLI or menu exposing all configuration,
+exports of fitted assignments/centroids/summary, consistent cluster numbering,
+a sample dataset, and exact run instructions. They requested separation of file
+parsing from clustering and no unnecessary class additions.
+
+The assistant reviewed existing code and documentation and checked for repository
+instructions. It added stateless CsvIO and CommandLine functions, a small main()
+dispatch preserving the previous self-check path, sample.csv, README.md, and
+test_csv_cli.py. The seven domain classes were not edited. The CLI requires seven
+arguments, ignores blank lines, rejects malformed fields with locations, exports
+stored memberships with zero-based indices, and requires a new output directory.
+
+The first warning-enabled C++17 build succeeded without warnings. The assistant
+ran the standard-library Python integration script, which passed all new checks
+and ran both entry points for the prior 54 checks. It also ran the sample CSV
+command and inspected the three exported files in sample-results/. Both commands
+returned 0; sample inertia was 4, with centroids (1,2)/(8,9), sizes 2/2, and two
+iterations. TESTING.md records actual commands, outputs, and unexecuted checks.
+The assistant updated design/testing/usage documentation. No GitHub push or
+independent human validation is claimed.

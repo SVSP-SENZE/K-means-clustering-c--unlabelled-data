@@ -175,3 +175,44 @@ numerical safeguards. Prediction remains future scope.
 
 No specification deviations. The assignment/update loop and initializer
 ownership are unchanged. Previous milestone entries describe their historical scope.
+
+## Milestone 7 decisions
+
+- CsvIO.h/.cpp provide free functions for strict numeric conversion, dataset
+  reading, and exporting results. CommandLine.h/.cpp provide CLI orchestration.
+  These stateless responsibilities do not need new classes; the seven domain
+  classes and clustering calculations remain unchanged.
+- The CLI uses seven positional arguments: input file, k, random|kmeans++, seed,
+  maximum iterations, tolerance, and output directory. All are explicit. Seed
+  accepts 0 through 4294967295; counts are positive decimal integers fitting
+  std::size_t. --help explains the syntax. No arguments or --self-test retains
+  all previous demos/checks. Runtime/input errors return 1 with an ERROR message.
+- Input has no header, quotes, comments, or BOM. Each nonblank row contains one
+  point, with comma-separated finite decimal numbers in a consistent positive
+  dimension. Signed decimal/scientific notation and surrounding spaces/tabs are
+  accepted. Entire fields must parse; overflow/underflow and non-finite values
+  are rejected. Blank or spaces/tabs-only lines are ignored; LF and CRLF work.
+  Error locations use physical line numbers and one-based field numbers.
+- Missing/unreadable files, directory inputs, empty/blank-only datasets, empty
+  fields, malformed fields, and inconsistent dimensions fail before fitting.
+  README.md is the complete format/CLI reference and sample.csv is the fixture.
+- assignments.csv has feature_1,...,feature_D,cluster_index; it iterates the
+  model's stored members in cluster order and preserves duplicates. It does not
+  promise original global row order and does not call predict(). centroids.csv
+  has cluster_index,feature_1,...,feature_D,size, including empty clusters.
+- summary.txt contains the input filename, configuration, point count/dimension,
+  inertia, completed iterations, stopping reason, numbering, and assignment
+  policy. Input is headerless; output CSVs have documented headers and metadata.
+- Cluster indices are zero-based everywhere, matching predict(). They are not
+  semantic labels. Number formatting uses the classic locale and max_digits10
+  precision. Exported numbers can round-trip to double.
+- Outputs require a new directory; existing paths are never overwritten. File
+  open/write/close errors are checked. An I/O failure may leave partial files in
+  the newly created directory; multi-file atomic export is not implemented.
+- Integration checks in test_csv_cli.py use only Python's standard library to
+  exercise the executable with temporary fixtures. Python is not an application
+  dependency. The sample-results directory records an actual successful run.
+
+No specification deviations. Assignments are intentionally grouped by cluster;
+preserving input row identifiers was not requested and would need additional
+bookkeeping beyond the existing member representation.

@@ -274,3 +274,88 @@ The latter uses [-8e153,8e153,-8e153,8e153] with initial mean 0.
 Not executed: deliberate self-check failure injection, centroid-update/movement
 overflow, allocation failures, or the previously proposed standalone DataPoint/
 DataSet edge-case checks. Earlier milestone testing notes are historical records.
+
+## Executed during milestone 7
+
+```powershell
+g++ -std=c++17 -Wall -Wextra -Wpedantic DataPoint.cpp DataSet.cpp Cluster.cpp RandomInitialiser.cpp KMeansPlusPlusInitialiser.cpp KMeans.cpp CsvIO.cpp CommandLine.cpp main.cpp -o MiniCluster.exe
+python test_csv_cli.py
+.\MiniCluster.exe sample.csv 2 kmeans++ 42 100 0.000001 sample-results
+```
+
+The first compilation succeeded with no warnings. Both subsequent commands
+returned 0. The integration script actually invoked both --self-test and the
+no-argument mode and compared their output, preserving all 54 earlier checks.
+It uses Python's standard library, creates temporary fixtures, and removes its
+own temporary directory automatically. Actual script output:
+
+```text
+PASS: --self-test and no arguments preserve all 54 earlier checks
+PASS: CLI help
+PASS: both initializers export the sample, configuration, inertia, and stopping reason
+PASS: blank lines, CRLF, whitespace, scientific notation, 1D/3D, duplicates, k=1/k=n, precision
+PASS: 22 invalid CSV cases plus missing-file and directory-input errors
+PASS: 15 invalid configuration arguments and wrong argument count
+PASS: existing outputs are preserved and unusable output paths fail clearly
+PASS: early-stop export uses stored members, not predict() (seed 0)
+All milestone-7 integration checks passed.
+```
+
+The invalid-file checks include empty/blank-only inputs, headers, leading/trailing/
+interior empty fields, inconsistent dimensions, junk suffixes, non-finite values,
+overflow/underflow, quotes, alternate delimiters, hexadecimal values, bad signs,
+internal whitespace, comments, and BOM. Error messages and failure exit codes are
+checked; no outputs may be created for rejected input. Configuration checks cover
+invalid counts/methods/seeds/tolerances and argument count. Valid checks read all
+three exported files and verify configuration, coordinate multiplicities, cluster
+numbering, sizes, means, and inertia. Identical-point k=n covers empty clusters.
+Existing-output rejection verifies file contents are unchanged; a file used as
+an output parent exercises a filesystem failure. Paths with spaces are tested.
+
+Actual sample-run output:
+
+```text
+input_file: sample.csv
+points: 4
+dimension: 2
+k: 2
+initialization: kmeans++
+seed: 42
+maximum_iterations: 100
+tolerance: 9.9999999999999995e-07
+inertia: 4
+iterations: 2
+stopping_reason: tolerance_reached
+cluster_numbering: zero-based (0 to k-1)
+assignment_policy: reported members from the final completed iteration
+Cluster 0: centroid (1,2), size 2
+Cluster 1: centroid (8,9), size 2
+Exported assignments.csv, centroids.csv, summary.txt to sample-results
+```
+
+The long tolerance spelling is the round-trip decimal representation of the
+double supplied as 0.000001. Inspected assignments.csv:
+
+```csv
+feature_1,feature_2,cluster_index
+1,1,0
+1,3,0
+8,8,1
+8,10,1
+```
+
+Inspected centroids.csv:
+
+```csv
+cluster_index,feature_1,feature_2,size
+0,1,2,2
+1,8,9,2
+```
+
+summary.txt contains the first 13 lines of the sample console output. The sample
+exports remain available in sample-results/. Use a different directory to rerun.
+git diff --check found no whitespace errors (Git printed line-ending notices).
+
+Not executed: actual disk-full/permission-denied/mid-write fault injection,
+large-file performance tests, or cross-platform compiler runs. The already
+documented unexecuted core edge cases remain outstanding; no extra claims are made.

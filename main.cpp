@@ -4,12 +4,14 @@
 #include "RandomInitialiser.h"
 #include "KMeans.h"
 #include "KMeansPlusPlusInitialiser.h"
+#include "CommandLine.h"
 
 #include <cmath>
 #include <iostream>
 #include <limits>
 #include <random>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 bool hasCoordinates(const DataPoint& point, const std::vector<double>& expected) {
@@ -183,7 +185,10 @@ void printResults(const char* title, const KMeans& model) {
     }
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+    if (argc > 1 && !(argc == 2 && std::string(argv[1]) == "--self-test")) {
+        return runCommandLine(argc, argv);
+    }
     DataPoint first({1.0, 1.0});
     DataPoint second({1.0, 3.0});
     DataPoint third({8.0, 8.0});
