@@ -1,0 +1,497 @@
+#include "TestSupport.h"
+#include "RandomInitialiser.h"
+#include "KMeansPlusPlusInitialiser.h"
+
+#include <cmath>
+#include <iostream>
+#include <limits>
+#include <stdexcept>
+
+int runRegressionChecks() {
+    DataPoint first({1.0, 1.0});
+    DataPoint second({1.0, 3.0});
+    DataPoint third({8.0, 8.0});
+    DataPoint fourth({8.0, 10.0});
+
+    DataSet dataset;
+    dataset.addPoint(first);
+    dataset.addPoint(second);
+    dataset.addPoint(third);
+    dataset.addPoint(fourth);
+
+    std::cout << "Dataset size: " << dataset.size() << '\n';
+    std::cout << "Dataset dimension: " << dataset.dimension() << '\n';
+    std::cout << "Squared distance between (1,1) and (1,3): "
+              << first.squaredDistanceTo(second) << '\n';
+
+    try {
+        dataset.addPoint(DataPoint({1.0, 2.0, 3.0}));
+    } catch (const std::invalid_argument& error) {
+        std::cout << "Rejected 3D point: " << error.what() << '\n';
+    }
+
+    std::cout << "Dataset size after rejected addition: " << dataset.size() << '\n';
+
+    try {
+        Cluster cluster(DataPoint({0.0, 0.0}));
+        check(cluster.size() == 0 && cluster.getMembers().empty()
+                  && hasCoordinates(cluster.getCentroid(), {0.0, 0.0}),
+              "Initial centroid (0,0), size 0");
+
+        cluster.addMember(first);
+        cluster.addMember(second);
+        cluster.updateCentroid();
+        check(cluster.size() == 2
+                  && hasCoordinates(cluster.getCentroid(), {1.0, 2.0}),
+              "2D mean centroid (1,2), size 2");
+
+        bool rejected = false;
+        try {
+            cluster.addMember(DataPoint({1.0, 2.0, 3.0}));
+        } catch (const std::invalid_argument&) {
+            rejected = true;
+        }
+        check(rejected && cluster.size() == 2
+                  && hasCoordinates(cluster.getCentroid(), {1.0, 2.0})
+                  && hasCoordinates(cluster.getMembers()[0], {1.0, 1.0})
+                  && hasCoordinates(cluster.getMembers()[1], {1.0, 3.0}),
+              "3D member rejected; centroid and members unchanged");
+
+        cluster.clearMembers();
+        check(cluster.size() == 0 && cluster.getMembers().empty()
+                  && hasCoordinates(cluster.getCentroid(), {1.0, 2.0}),
+              "Clear members: size 0, centroid remains (1,2)");
+
+        cluster.updateCentroid();
+        check(cluster.size() == 0
+                  && hasCoordinates(cluster.getCentroid(), {1.0, 2.0}),
+              "Empty update preserves centroid (1,2)");
+
+        Cluster cluster3D(DataPoint({0.0, 0.0, 0.0}));
+        cluster3D.addMember(DataPoint({1.0, 2.0, 3.0}));
+        cluster3D.addMember(DataPoint({3.0, 4.0, 5.0}));
+        cluster3D.updateCentroid();
+        check(cluster3D.size() == 2
+                  && hasCoordinates(cluster3D.getCentroid(), {2.0, 3.0, 4.0}),
+              "3D mean centroid (2,3,4), size 2");
+    } catch (const std::exception& error) {
+        std::cerr << "FAIL: " << error.what() << '\n';
+        return 1;
+    }
+
+    std::cout << "All milestone-2 checks passed.\n";
+
+    try {
+        RandomInitialiser randomInitialiser;
+        const IInitialiser& initialiser = randomInitialiser;
+        std::mt19937 rng(42);
+        const std::size_t k = 2;
+        const std::vector<DataPoint> centres = initialiser.initialise(dataset, k, rng);
+        check(centres.size() == k && allFromDataset(centres, dataset),
+              "Base-reference call returns k input points");
+        check(haveDistinctCoordinates(centres),
+              "Unique input coordinates are selected without repetition");
+
+        std::mt19937 firstRng(12345);
+        std::mt19937 secondRng(12345);
+        const std::vector<DataPoint> firstCentres =
+            initialiser.initialise(dataset, k, firstRng);
+        const std::vector<DataPoint> secondCentres =
+            initialiser.initialise(dataset, k, secondRng);
+        bool sameOrder = firstCentres.size() == k && secondCentres.size() == k;
+        for (std::size_t i = 0; sameOrder && i < k; ++i) {
+            sameOrder = hasCoordinates(firstCentres[i], secondCentres[i].getFeatures());
+        }
+        check(sameOrder, "Fresh generators with the same seed give the same ordered centres");
+
+        const std::vector<DataPoint> single = initialiser.initialise(dataset, 1, rng);
+        check(single.size() == 1 && allFromDataset(single, dataset),
+              "k=1 returns one input point");
+        const std::vector<DataPoint> all =
+            initialiser.initialise(dataset, dataset.size(), rng);
+        check(all.size() == dataset.size() && allFromDataset(all, dataset)
+                  && haveDistinctCoordinates(all),
+              "k=dataset.size() returns every input point once");
+
+        DataSet emptyDataset;
+        check(rejectsInitialisation(initialiser, emptyDataset, 1, rng),
+              "Empty dataset is rejected");
+        check(rejectsInitialisation(initialiser, dataset, 0, rng),
+              "k=0 is rejected");
+        check(rejectsInitialisation(initialiser, dataset, dataset.size() + 1, rng),
+              "k larger than dataset size is rejected");
+
+        DataSet duplicates;
+        duplicates.addPoint(DataPoint({5.0, 5.0}));
+        duplicates.addPoint(DataPoint({5.0, 5.0}));
+        duplicates.addPoint(DataPoint({5.0, 5.0}));
+        const std::vector<DataPoint> duplicateCentres =
+            initialiser.initialise(duplicates, duplicates.size(), rng);
+        check(duplicateCentres.size() == duplicates.size()
+                  && allFromDataset(duplicateCentres, duplicates),
+              "Identical coordinates are accepted for valid k");
+    } catch (const std::exception& error) {
+        std::cerr << "FAIL: " << error.what() << '\n';
+        return 1;
+    }
+
+    std::cout << "All milestone-3 checks passed.\n";
+
+    try {
+        FixedInitialiser fixed({first, third});
+        KMeans model(2, 100, 1e-6, 42);
+        check(model.getClusters().empty() && model.getIterationCount() == 0
+                  && model.getStoppingReason() == KMeans::StopReason::NotFitted,
+              "New KMeans reports not fitted");
+        model.fit(dataset, fixed);
+        check(model.getClusters().size() == 2
+                  && hasCoordinates(model.getClusters()[0].getCentroid(), {1.0, 2.0})
+                  && hasCoordinates(model.getClusters()[1].getCentroid(), {8.0, 9.0})
+                  && model.getClusters()[0].size() == 2 && model.getClusters()[1].size() == 2
+                  && model.getIterationCount() == 2
+                  && model.getStoppingReason() == KMeans::StopReason::ToleranceReached,
+              "Fixed centres reach (1,2) and (8,9), sizes 2 and 2, in two iterations");
+        printResults("Fixed-initializer demo:", model);
+
+        RandomInitialiser randomInitialiser;
+        KMeans randomModel(2, 100, 1e-6, 42);
+        randomModel.fit(dataset, randomInitialiser);
+        const std::vector<Cluster> firstRun = randomModel.getClusters();
+        const std::size_t firstCount = randomModel.getIterationCount();
+        randomModel.fit(dataset, randomInitialiser);
+        bool repeated = randomModel.getClusters().size() == firstRun.size()
+            && randomModel.getIterationCount() == firstCount;
+        for (std::size_t i = 0; repeated && i < firstRun.size(); ++i) {
+            repeated = hasCoordinates(randomModel.getClusters()[i].getCentroid(),
+                                      firstRun[i].getCentroid().getFeatures())
+                && randomModel.getClusters()[i].size() == firstRun[i].size();
+            for (std::size_t j = 0; repeated && j < firstRun[i].size(); ++j) {
+                repeated = hasCoordinates(randomModel.getClusters()[i].getMembers()[j],
+                                          firstRun[i].getMembers()[j].getFeatures());
+            }
+        }
+        check(repeated, "Repeated random fits restart the seeded generator and replace results");
+        printResults("Random-initializer demo (seed 42):", randomModel);
+
+        KMeans boundary(2, 1, 1.0, 42);
+        boundary.fit(dataset, fixed);
+        check(boundary.getIterationCount() == 1
+                  && boundary.getStoppingReason() == KMeans::StopReason::ToleranceReached,
+              "Movement equal to tolerance stops, including at the iteration limit");
+
+        DataSet fractional;
+        fractional.addPoint(DataPoint({0.75}));
+        FixedInitialiser zero({DataPoint({0.0})});
+        KMeans fractionalModel(1, 10, 0.6, 42);
+        fractionalModel.fit(fractional, zero);
+        check(fractionalModel.getIterationCount() == 2
+                  && hasCoordinates(fractionalModel.getClusters()[0].getCentroid(), {0.75}),
+              "Euclidean movement 0.75 exceeds tolerance 0.6");
+
+        FixedInitialiser duplicateStarts({first, first});
+        KMeans ties(2, 1, 0.0, 42);
+        ties.fit(dataset, duplicateStarts);
+        check(ties.getClusters()[0].size() == 4 && ties.getClusters()[1].size() == 0
+                  && hasCoordinates(ties.getClusters()[0].getCentroid(), {4.5, 5.5})
+                  && hasCoordinates(ties.getClusters()[1].getCentroid(), {1.0, 1.0}),
+              "Ties choose index 0; empty cluster preserves its centroid");
+
+        // Point 2 would change clusters if an extra reassignment were performed.
+        DataSet earlyData;
+        for (double value : {0.0, 2.0, 3.0, 10.0}) {
+            earlyData.addPoint(DataPoint({value}));
+        }
+        FixedInitialiser earlyStarts({DataPoint({0.0}), DataPoint({2.0})});
+        KMeans limited(2, 1, 0.0, 42);
+        limited.fit(earlyData, earlyStarts);
+        check(limited.getIterationCount() == 1
+                  && limited.getStoppingReason() == KMeans::StopReason::IterationLimit
+                  && limited.getClusters()[0].size() == 1 && limited.getClusters()[1].size() == 3
+                  && hasCoordinates(limited.getClusters()[0].getCentroid(), {0.0})
+                  && hasCoordinates(limited.getClusters()[1].getCentroid(), {5.0})
+                  && hasCoordinates(limited.getClusters()[1].getMembers()[0], {2.0}),
+              "Iteration-limit stop preserves the completed assignment/update pair");
+        KMeans looseTolerance(2, 10, 3.0, 42);
+        looseTolerance.fit(earlyData, earlyStarts);
+        check(looseTolerance.getIterationCount() == 1
+                  && looseTolerance.getStoppingReason() == KMeans::StopReason::ToleranceReached
+                  && looseTolerance.getClusters()[0].size() == 1
+                  && looseTolerance.getClusters()[1].size() == 3
+                  && hasCoordinates(looseTolerance.getClusters()[1].getCentroid(), {5.0}),
+              "Tolerance stop also preserves members without final reassignment");
+
+        DataSet data3D;
+        data3D.addPoint(DataPoint({1.0, 2.0, 3.0}));
+        data3D.addPoint(DataPoint({3.0, 4.0, 5.0}));
+        KMeans model3D(1, 10, 0.0, 42);
+        model3D.fit(data3D, randomInitialiser);
+        check(hasCoordinates(model3D.getClusters()[0].getCentroid(), {2.0, 3.0, 4.0})
+                  && model3D.getClusters()[0].size() == 2 && model3D.getIterationCount() == 2,
+              "3D fit with zero tolerance reaches the mean");
+
+        check(rejectsConfiguration(0, 10, 0.0) && rejectsConfiguration(2, 0, 0.0)
+                  && rejectsConfiguration(2, 10, -1.0)
+                  && rejectsConfiguration(2, 10, std::numeric_limits<double>::infinity())
+                  && rejectsConfiguration(2, 10, std::numeric_limits<double>::quiet_NaN()),
+              "Invalid k, iteration count, and tolerances are rejected");
+        DataSet empty;
+        KMeans tooMany(5, 10, 0.0, 42);
+        check(rejectsFit(model, empty, fixed) && rejectsFit(tooMany, dataset, fixed),
+              "Empty dataset and k greater than dataset size are rejected");
+        FixedInitialiser tooFew({first});
+        FixedInitialiser tooManyCentres({first, second, third});
+        FixedInitialiser wrongDimension({first, DataPoint({1.0, 2.0, 3.0})});
+        check(rejectsFit(model, dataset, tooFew) && rejectsFit(model, dataset, tooManyCentres)
+                  && rejectsFit(model, dataset, wrongDimension),
+              "Initializer output count and dimensions are validated");
+        check(model.getIterationCount() == 2
+                  && model.getStoppingReason() == KMeans::StopReason::ToleranceReached
+                  && model.getClusters()[0].size() == 2 && model.getClusters()[1].size() == 2
+                  && hasCoordinates(model.getClusters()[0].getCentroid(), {1.0, 2.0})
+                  && hasCoordinates(model.getClusters()[1].getCentroid(), {8.0, 9.0}),
+              "Rejected fits preserve the previous completed results");
+    } catch (const std::exception& error) {
+        std::cerr << "FAIL: " << error.what() << '\n';
+        return 1;
+    }
+
+    std::cout << "All milestone-4 checks passed.\n";
+
+    try {
+        KMeansPlusPlusInitialiser plusPlus;
+        const IInitialiser& initialiser = plusPlus;
+        std::mt19937 rng(42);
+        const std::vector<DataPoint> centres = initialiser.initialise(dataset, 2, rng);
+        check(centres.size() == 2 && allFromDataset(centres, dataset)
+                  && haveDistinctCoordinates(centres),
+              "K-Means++ selects two distinct input observations on ordinary data");
+
+        const std::vector<DataPoint> single = initialiser.initialise(dataset, 1, rng);
+        check(single.size() == 1 && allFromDataset(single, dataset),
+              "K-Means++ accepts k=1");
+        const std::vector<DataPoint> all = initialiser.initialise(dataset, dataset.size(), rng);
+        check(all.size() == dataset.size() && respectsInputMultiplicities(all, dataset)
+                  && haveDistinctCoordinates(all),
+              "K-Means++ accepts k=n and returns every unique observation once");
+
+        DataSet repeated;
+        repeated.addPoint(first);
+        repeated.addPoint(first);
+        repeated.addPoint(third);
+        repeated.addPoint(third);
+        repeated.addPoint(third);
+        const std::vector<DataPoint> repeatedCentres =
+            initialiser.initialise(repeated, repeated.size(), rng);
+        check(repeatedCentres.size() == repeated.size()
+                  && respectsInputMultiplicities(repeatedCentres, repeated)
+                  && !hasCoordinates(repeatedCentres[0], repeatedCentres[1].getFeatures()),
+              "Repeated coordinates preserve multiplicities and select positive weights first");
+
+        DataSet identical;
+        for (std::size_t i = 0; i < 4; ++i) {
+            identical.addPoint(DataPoint({5.0, 5.0}));
+        }
+        const std::vector<DataPoint> identicalCentres =
+            initialiser.initialise(identical, identical.size(), rng);
+        check(identicalCentres.size() == identical.size()
+                  && respectsInputMultiplicities(identicalCentres, identical),
+              "All-identical data uses zero-weight fallback through k=n");
+
+        std::mt19937 firstRng(12345);
+        std::mt19937 secondRng(12345);
+        const std::vector<DataPoint> firstCentres =
+            initialiser.initialise(repeated, repeated.size(), firstRng);
+        const std::vector<DataPoint> secondCentres =
+            initialiser.initialise(repeated, repeated.size(), secondRng);
+        bool sameOrder = firstCentres.size() == repeated.size()
+            && secondCentres.size() == repeated.size();
+        for (std::size_t i = 0; sameOrder && i < firstCentres.size(); ++i) {
+            sameOrder = hasCoordinates(firstCentres[i], secondCentres[i].getFeatures());
+        }
+        check(sameOrder, "K-Means++ repeats ordered centres with fresh equal seeds");
+
+        DataSet empty;
+        check(rejectsInitialisation(initialiser, empty, 1, rng)
+                  && rejectsInitialisation(initialiser, dataset, 0, rng)
+                  && rejectsInitialisation(initialiser, dataset, dataset.size() + 1, rng),
+              "K-Means++ rejects empty data, k=0, and k greater than n");
+
+        // These distances are finite, but their unscaled sum would overflow.
+        DataSet largeWeights;
+        for (double value : {-6e153, -6e153, 6e153, 6e153}) {
+            largeWeights.addPoint(DataPoint({value}));
+        }
+        const std::vector<DataPoint> largeCentres = initialiser.initialise(largeWeights, 4, rng);
+        check(largeCentres.size() == 4 && respectsInputMultiplicities(largeCentres, largeWeights),
+              "Large finite weights are scaled safely before sampling");
+
+        DataSet overflowData;
+        overflowData.addPoint(DataPoint({-1e308}));
+        overflowData.addPoint(DataPoint({1e308}));
+        bool overflowRejected = false;
+        try {
+            initialiser.initialise(overflowData, 2, rng);
+        } catch (const std::overflow_error&) {
+            overflowRejected = true;
+        }
+        check(overflowRejected, "Non-finite squared distances are rejected");
+
+        RandomInitialiser randomInitialiser;
+        KMeans sharedModel(2, 100, 1e-6, 42);
+        sharedModel.fit(dataset, randomInitialiser);
+        check(hasExpectedDemoClusters(sharedModel), "Same fit() accepts RandomInitialiser");
+        printResults("Milestone-5 random demo (seed 42):", sharedModel);
+        sharedModel.fit(dataset, plusPlus);
+        check(hasExpectedDemoClusters(sharedModel), "Same fit() accepts KMeansPlusPlusInitialiser");
+        printResults("Milestone-5 K-Means++ demo (seed 42):", sharedModel);
+    } catch (const std::exception& error) {
+        std::cerr << "FAIL: " << error.what() << '\n';
+        return 1;
+    }
+
+    std::cout << "All milestone-5 checks passed.\n";
+
+    try {
+        KMeans model(2, 100, 1e-6, 42);
+        bool predictionRejected = false;
+        try {
+            model.predict(first);
+        } catch (const std::logic_error& error) {
+            predictionRejected = true;
+            std::cout << "Expected prediction error: " << error.what() << '\n';
+        }
+        bool inertiaRejected = false;
+        try {
+            model.getInertia();
+        } catch (const std::logic_error&) {
+            inertiaRejected = true;
+        }
+        check(predictionRejected && inertiaRejected,
+              "Prediction and inertia reject an unfitted model");
+
+        FixedInitialiser fixed({first, third});
+        DataSet empty;
+        bool firstFitRejected = rejectsFit(model, empty, fixed);
+        predictionRejected = false;
+        try {
+            model.predict(first);
+        } catch (const std::logic_error&) {
+            predictionRejected = true;
+        }
+        check(firstFitRejected && predictionRejected && model.getClusters().empty()
+                  && model.getIterationCount() == 0
+                  && model.getStoppingReason() == KMeans::StopReason::NotFitted,
+              "Failed first fit leaves the model unfitted");
+
+        RandomInitialiser randomInitialiser;
+        KMeans oneCluster(1, 100, 0.0, 42);
+        oneCluster.fit(dataset, randomInitialiser);
+        check(oneCluster.getClusters().size() == 1 && oneCluster.getClusters()[0].size() == 4
+                  && hasCoordinates(oneCluster.getClusters()[0].getCentroid(), {4.5, 5.5}),
+              "k=1 gives the overall mean (4.5,5.5)");
+        check(std::abs(oneCluster.getInertia() - 102.0) < 1e-9,
+              "One-cluster inertia matches 32.5 + 18.5 + 18.5 + 32.5 = 102");
+
+        model.fit(dataset, fixed);
+        check(std::abs(model.getInertia() - 4.0) < 1e-9,
+              "Two-cluster inertia matches 1 + 1 + 1 + 1 = 4");
+        const KMeans snapshot = model;
+        const KMeans& readOnlyModel = model;
+        check(readOnlyModel.predict(DataPoint({1.0, 2.2})) == 0
+                  && readOnlyModel.predict(DataPoint({8.0, 9.2})) == 1,
+              "predict() assigns obvious nearby points correctly");
+        check(readOnlyModel.predict(DataPoint({4.5, 5.5})) == 0,
+              "Prediction ties choose the lowest cluster index");
+        bool mismatchRejected = false;
+        try {
+            readOnlyModel.predict(DataPoint({1.0, 2.0, 3.0}));
+        } catch (const std::invalid_argument& error) {
+            mismatchRejected = true;
+            std::cout << "Expected dimension error: " << error.what() << '\n';
+        }
+        check(mismatchRejected, "Prediction rejects a dimension mismatch");
+        check(sameFittedResults(model, snapshot),
+              "Predictions preserve centroids, members, inertia, and stopping metadata");
+        std::cout << "Milestone-6 inertia: k=1 -> " << oneCluster.getInertia()
+                  << "; k=2 -> " << model.getInertia() << '\n';
+        std::cout << "Predicted indices: (1,2.2) -> " << model.predict(DataPoint({1.0, 2.2}))
+                  << "; (8,9.2) -> " << model.predict(DataPoint({8.0, 9.2})) << '\n';
+
+        check(rejectsFit(model, empty, fixed) && sameFittedResults(model, snapshot)
+                  && model.predict(first) == 0,
+              "Rejected refit preserves the successful model and its predictions");
+        DataSet extreme;
+        extreme.addPoint(DataPoint({-1e308}));
+        extreme.addPoint(DataPoint({1e308}));
+        FixedInitialiser extremeStarts({DataPoint({-1e308}), DataPoint({1e308})});
+        bool fitOverflowRejected = false;
+        try {
+            model.fit(extreme, extremeStarts);
+        } catch (const std::overflow_error&) {
+            fitOverflowRejected = true;
+        }
+        check(fitOverflowRejected && sameFittedResults(model, snapshot)
+                  && model.predict(third) == 1,
+              "Failure during assignment also preserves the previous fitted model");
+
+        DataSet replacementData;
+        replacementData.addPoint(DataPoint({0.0, 0.0, 0.0}));
+        replacementData.addPoint(DataPoint({2.0, 2.0, 2.0}));
+        replacementData.addPoint(DataPoint({10.0, 10.0, 10.0}));
+        FixedInitialiser replacementStarts({DataPoint({0.0, 0.0, 0.0}),
+                                           DataPoint({10.0, 10.0, 10.0})});
+        model.fit(replacementData, replacementStarts);
+        const KMeans replacementSnapshot = model;
+        model.fit(replacementData, replacementStarts);
+        check(sameFittedResults(model, replacementSnapshot) && model.getClusters().size() == 2
+                  && model.getClusters()[0].size() == 2 && model.getClusters()[1].size() == 1
+                  && hasCoordinates(model.getClusters()[0].getCentroid(), {1.0, 1.0, 1.0})
+                  && hasCoordinates(model.getClusters()[1].getCentroid(), {10.0, 10.0, 10.0})
+                  && std::abs(model.getInertia() - 6.0) < 1e-9
+                  && model.predict(DataPoint({9.0, 9.0, 9.0})) == 1,
+              "Repeated fits replace old data and dimensions without accumulating members");
+
+        DataSet earlyData;
+        for (double value : {0.0, 2.0, 3.0, 10.0}) {
+            earlyData.addPoint(DataPoint({value}));
+        }
+        FixedInitialiser earlyStarts({DataPoint({0.0}), DataPoint({2.0})});
+        KMeans earlyModel(2, 1, 0.0, 42);
+        earlyModel.fit(earlyData, earlyStarts);
+        check(std::abs(earlyModel.getInertia() - 38.0) < 1e-9
+                  && earlyModel.predict(DataPoint({2.0})) == 0
+                  && hasCoordinates(earlyModel.getClusters()[1].getMembers()[0], {2.0}),
+              "Early-stop inertia uses reported memberships, not new predictions");
+
+        bool predictionOverflowRejected = false;
+        try {
+            earlyModel.predict(DataPoint({1e308}));
+        } catch (const std::overflow_error&) {
+            predictionOverflowRejected = true;
+        }
+        check(predictionOverflowRejected && std::abs(earlyModel.getInertia() - 38.0) < 1e-9,
+              "Prediction distance overflow is rejected without changing results");
+
+        DataSet largeInertia;
+        for (double value : {-8e153, 8e153, -8e153, 8e153}) {
+            largeInertia.addPoint(DataPoint({value}));
+        }
+        FixedInitialiser origin({DataPoint({0.0})});
+        KMeans largeModel(1, 10, 0.0, 42);
+        largeModel.fit(largeInertia, origin);
+        bool inertiaOverflowRejected = false;
+        try {
+            largeModel.getInertia();
+        } catch (const std::overflow_error&) {
+            inertiaOverflowRejected = true;
+        }
+        check(inertiaOverflowRejected && largeModel.predict(DataPoint({0.0})) == 0,
+              "Inertia sum overflow raises an error while the fitted model remains usable");
+    } catch (const std::exception& error) {
+        std::cerr << "FAIL: " << error.what() << '\n';
+        return 1;
+    }
+
+    std::cout << "All milestone-6 checks passed.\n";
+    return 0;
+}

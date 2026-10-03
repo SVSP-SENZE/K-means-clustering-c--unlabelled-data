@@ -58,16 +58,13 @@ def read_exports(directory, expected_points):
 
 
 def main():
-    previous = invoke("--self-test")
-    require(previous.returncode == 0 and "All milestone-6 checks passed." in previous.stdout,
-            previous.stdout + previous.stderr)
     default = invoke()
-    require(default.returncode == 0 and default.stdout == previous.stdout,
-            "No-argument behaviour must preserve prior demonstrations")
-    print("PASS: --self-test and no arguments preserve all 54 earlier checks")
     help_result = invoke("--help")
-    require(help_result.returncode == 0 and "Usage:" in help_result.stdout, "Help output")
-    print("PASS: CLI help")
+    require(default.returncode == 0 and help_result.returncode == 0
+            and default.stdout == help_result.stdout and "Usage:" in default.stdout
+            and "PASS:" not in default.stdout, "User-facing help without test execution")
+    require(invoke("--self-test").returncode == 1, "Tests have a separate executable")
+    print("PASS: user-facing help and no embedded self-test mode")
 
     with tempfile.TemporaryDirectory(prefix="minicluster-csv-") as temporary:
         root = Path(temporary)
@@ -178,7 +175,7 @@ def main():
                 break
         require(found, "Exercise a reported member differing from fresh prediction")
         print(f"PASS: early-stop export uses stored members, not predict() (seed {seed})")
-    print("All milestone-7 integration checks passed.")
+    print("All CSV/CLI integration checks passed.")
 
 
 if __name__ == "__main__":

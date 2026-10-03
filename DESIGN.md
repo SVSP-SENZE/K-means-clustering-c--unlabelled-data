@@ -216,3 +216,35 @@ ownership are unchanged. Previous milestone entries describe their historical sc
 No specification deviations. Assignments are intentionally grouped by cluster;
 preserving input row identifiers was not requested and would need additional
 bookkeeping beyond the existing member representation.
+
+## Milestone 8 decisions
+
+- main.cpp now only calls runCommandLine(). The application shows help with no
+  arguments or --help. Embedded --self-test mode is retired; tests run through
+  the separate MiniClusterTests.exe, keeping test helpers out of the application.
+- tests/RegressionChecks.cpp preserves the previous 54 checks and demonstrations.
+  tests/TestSupport.h/.cpp contain their shared helpers and FixedInitialiser.
+  tests/TestMain.cpp supplies the runner and eight focused groups of new checks.
+  The runner catches failures and returns 1; each new group runs independently.
+  No external C++ testing framework is used.
+- Derived numerical results use tolerances: the new checks use 1e-9 absolute/
+  relative tolerance and the preserved checks use their original 1e-9 tolerance.
+  Membership accounting uses exact feature equality because members are unchanged
+  copies, and matches each member to one unused input index. This retains duplicate
+  multiplicities and distinguishes close-but-different observations.
+- Expected clustering checks accept either label order and repeat the fixed-centre
+  example with reversed starts. Exact indices are asserted only where meaningful:
+  explicit starting-centre order, documented lowest-index ties, or checking that
+  predictions/refits leave the same model unchanged.
+- A 240-fit matrix covers both strategies, seeds 0/1/42, every k from 1 through n,
+  iteration limits 1/30, and five datasets (ordinary 2D, repeated coordinates,
+  all-identical 1D, 3D, and very close 1D observations). Each fit verifies a full
+  partition, size totals, nonempty-centroid means, inertia, and iteration bounds.
+- C++ CSV checks create a unique temporary directory and remove only its known
+  file and then the empty directory; cleanup is non-recursive. The Python CLI
+  integration suite remains supplementary and now checks the user-facing entry
+  point instead of invoking embedded tests.
+
+No domain-class or clustering-loop changes were needed: all executed tests passed,
+so no production algorithm defect was demonstrated. The intentional CLI change
+is separating tests from normal program execution as requested.

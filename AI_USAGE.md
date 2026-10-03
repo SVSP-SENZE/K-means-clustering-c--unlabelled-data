@@ -162,3 +162,28 @@ returned 0; sample inertia was 4, with centroids (1,2)/(8,9), sizes 2/2, and two
 iterations. TESTING.md records actual commands, outputs, and unexecuted checks.
 The assistant updated design/testing/usage documentation. No GitHub push or
 independent human validation is claimed.
+
+## Milestone 8
+
+The user requested a separate test executable, simple C++ checks without a
+framework, broad class/algorithm/CSV coverage, numerical tolerances, label-order
+independence, and duplicate-aware membership/centroid invariants. They asked for
+actual execution, fixes for demonstrated defects, and an honest coverage report.
+
+The assistant reviewed existing code, tests, and documentation and checked for
+project instructions. It moved the 54 prior checks and helpers from main.cpp into
+tests/RegressionChecks.cpp and tests/TestSupport.h/.cpp, added tests/TestMain.cpp
+with eight additional groups, and reduced main.cpp to user-facing CLI dispatch.
+It updated CLI help/no-argument behaviour and the Python integration script for
+the separate test executable. No domain-class changes were made.
+
+Both warning-enabled C++17 builds succeeded on the first attempt without warnings.
+MiniClusterTests.exe and test_csv_cli.py each exited with code 0. The C++ suite
+passed all preserved regression checks and new groups, including 240 fitted
+partitions and direct CSV validation. No production defect was demonstrated;
+the assistant therefore made no speculative algorithm changes. A deliberately
+invalid synthetic partition was rejected by the accounting helper, as intended.
+
+The assistant updated README.md, DESIGN.md, TESTING.md, and this usage record with
+current commands, actual results, intentional CLI changes, and remaining limits.
+No GitHub push, independent human testing, or unexecuted test result is claimed.

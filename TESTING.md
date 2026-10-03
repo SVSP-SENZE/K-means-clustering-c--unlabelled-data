@@ -1,5 +1,9 @@
 # MiniCluster testing
 
+Current suite: build/run MiniClusterTests.exe using the milestone-8 commands at
+the end of this file. main.cpp is now CLI-only; older --self-test instructions
+below are historical records. README.md contains the current quick-start.
+
 For each implementation milestone, compile with warnings enabled and run
 meaningful checks. Keep executed results separate from proposed checks.
 
@@ -359,3 +363,80 @@ git diff --check found no whitespace errors (Git printed line-ending notices).
 Not executed: actual disk-full/permission-denied/mid-write fault injection,
 large-file performance tests, or cross-platform compiler runs. The already
 documented unexecuted core edge cases remain outstanding; no extra claims are made.
+
+## Executed during milestone 8
+
+```powershell
+g++ -std=c++17 -Wall -Wextra -Wpedantic DataPoint.cpp DataSet.cpp Cluster.cpp RandomInitialiser.cpp KMeansPlusPlusInitialiser.cpp KMeans.cpp CsvIO.cpp CommandLine.cpp main.cpp -o MiniCluster.exe
+g++ -std=c++17 -Wall -Wextra -Wpedantic -I. DataPoint.cpp DataSet.cpp Cluster.cpp RandomInitialiser.cpp KMeansPlusPlusInitialiser.cpp KMeans.cpp CsvIO.cpp tests/TestSupport.cpp tests/RegressionChecks.cpp tests/TestMain.cpp -o MiniClusterTests.exe
+.\MiniClusterTests.exe
+python test_csv_cli.py
+```
+
+Both first builds exited with code 0 and no warnings. Both suites exited with
+code 0. No production defect was demonstrated and no algorithm fixes were made.
+The 54 previous regression checks passed in the new executable. Its additional
+actual output was:
+
+```text
+PASS GROUP: DataPoint validation, ownership, and squared distances
+PASS GROUP: DataSet dimensions and unchanged state after rejection
+PASS GROUP: Cluster fractional means and empty-cluster policy
+PASS GROUP: Both initializers: invalid input and duplicate observations
+PASS GROUP: Fixed-centre results independent of label order, k=1, refit, and prediction
+PASS GROUP: Lowest-index ties and maximum-iteration termination
+Verified 240 fitted partitions: occurrence counts, total sizes, means, and inertia.
+PASS GROUP: Duplicate-aware membership and centroid invariants
+PASS GROUP: CSV validation in the C++ test executable
+All C++ tests passed: 54 regression checks and 8 additional groups.
+```
+
+Actual CLI integration output:
+
+```text
+PASS: user-facing help and no embedded self-test mode
+PASS: both initializers export the sample, configuration, inertia, and stopping reason
+PASS: blank lines, CRLF, whitespace, scientific notation, 1D/3D, duplicates, k=1/k=n, precision
+PASS: 22 invalid CSV cases plus missing-file and directory-input errors
+PASS: 15 invalid configuration arguments and wrong argument count
+PASS: existing outputs are preserved and unusable output paths fail clearly
+PASS: early-stop export uses stored members, not predict() (seed 0)
+All CSV/CLI integration checks passed.
+```
+
+### Coverage established by executed checks
+
+| Area | Evidence |
+| --- | --- |
+| DataPoint | Empty features, NaN, positive/negative infinity rejected; vector copied; dimensions and hand-calculated 1D/2D/3D distances, symmetry/self-distance, mismatches in both directions |
+| DataSet | Empty dimension 0; smaller/larger dimensions rejected without changing stored contents; valid insertion still works after rejection |
+| Cluster | Fractional 3D means; rejected membership leaves state; empty update and clearing retain previous centroid |
+| Input/configuration | Invalid k, empty datasets, bad iteration/tolerance settings, and malformed initializer output |
+| Initializers | Both strategies, distinct indices via output multiplicities, duplicate/all-identical data, every valid k, same-seed checks, invalid calls preserve RNG state |
+| Expected clustering | Four-point manual example with both starting-centre orders; k=1 overall mean/inertia |
+| Stopping/ties | Lowest-index assignment/prediction ties; maximum-iteration and tolerance boundaries; no final reassignment |
+| Refit/prediction | Successful replacement without accumulation; dimension changes; rejected first fit/refit; predictions do not mutate results |
+| CSV | Valid syntax/blank lines, 22 malformed cases with helpful messages, missing file and directory rejection directly in C++; CLI/export checks separately |
+| Partition invariants | 240 fits verify every input occurrence exactly once, total sizes equal n, nonempty centroid means, and independently summed inertia |
+
+The matrix is 5 datasets, both initializers, seeds 0/1/42, every k=1..n, and
+iteration limits 1/30. Expected numerical values use tolerances. Returned copied
+members use exact coordinate matching against unused input entries: equal rows
+count separately, and 0 versus 1e-12 is not merged by tolerance. A deliberately
+incorrect synthetic partition with the correct total size is rejected by this
+accounting helper. This is a check of the test helper, not an observed model bug.
+
+Clustering comparisons are independent of arbitrary label order. Order-sensitive
+legacy assertions are restricted to explicitly fixed starts, defined tie rules,
+or preservation/reproducibility of the same model. The reversed-start test proves
+the expected-centroid comparison accepts a label permutation.
+
+### Remaining limits
+
+No tests establish correctness for every dataset, global optimality, or statistical
+sampling frequencies. Identical points have no stored identity: tests verify
+occurrence multiplicities, not an unexposed provenance ID. Large-data performance,
+allocation failure, centroid-sum/movement overflow, actual disk-full/permission/
+mid-write failures, and cross-platform/library builds remain untested. The runner's
+nonzero failure path has not been deliberately triggered. The previously deferred
+DataPoint/DataSet validation cases are now covered as listed above.

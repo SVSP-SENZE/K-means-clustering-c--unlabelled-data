@@ -39,7 +39,8 @@ The positional arguments, in order, are:
 
 K and MAX_ITERATIONS must fit std::size_t. Integer arguments contain digits only.
 No optional defaults are hidden: all seven arguments are required for a CSV run.
-No arguments, or --self-test, runs the previous milestone demonstrations/checks.
+No arguments or --help displays usage. Run MiniClusterTests.exe for tests;
+the application no longer has an embedded --self-test mode.
 Errors print ERROR with a useful explanation and return exit code 1; success is 0.
 
 ## Strict input format
@@ -100,12 +101,21 @@ files in the new directory; exports are not a multi-file atomic transaction.
 
 ## Checks
 
+Build the separate C++ test executable (no external framework):
+
 ```powershell
-.\MiniCluster.exe --self-test
+g++ -std=c++17 -Wall -Wextra -Wpedantic -I. DataPoint.cpp DataSet.cpp Cluster.cpp RandomInitialiser.cpp KMeansPlusPlusInitialiser.cpp KMeans.cpp CsvIO.cpp tests/TestSupport.cpp tests/RegressionChecks.cpp tests/TestMain.cpp -o MiniClusterTests.exe
+.\MiniClusterTests.exe
 python test_csv_cli.py
 ```
 
-The first command runs all earlier C++ checks. The second requires Python 3 only
-for testing (standard library, no packages); it runs CLI integration checks with
-temporary input/output files. The application itself uses only C++17 and its
-standard library. See TESTING.md for executed results and remaining limitations.
+Build the application using the command above before running the Python script.
+The C++ suite preserves the 54 earlier regression checks and adds eight groups,
+including direct CSV validation and 240 fitted-result invariant checks. Test-only
+helpers and the fixed initializer live under tests/; main.cpp only launches the
+user-facing CLI. -I. lets test sources find headers in the project root.
+
+The Python script is an additional CLI/export integration check, requiring only
+Python 3's standard library. It is not required to build or run the C++ suite.
+Both suites use temporary CSV fixtures, report failures, and return nonzero on
+failure. See TESTING.md for coverage, executed results, and remaining limitations.

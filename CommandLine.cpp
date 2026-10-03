@@ -20,7 +20,7 @@ void printUsage() {
               << "Example: MiniCluster.exe sample.csv 2 kmeans++ 42 100 0.000001 results\n"
               << "INPUT: no header, finite comma-separated numbers; blank lines are ignored.\n"
               << "OUTPUT_DIR must be new. Cluster indices start at 0.\n"
-              << "Use --self-test (or no arguments) for the previous milestone checks.\n";
+              << "Run MiniClusterTests.exe separately for the C++ test suite.\n";
 }
 
 std::uint64_t parseUnsigned(const std::string& text, const std::string& name) {
@@ -43,7 +43,7 @@ std::size_t parseCount(const std::string& text, const std::string& name) {
 
 int runCommandLine(int argc, char* argv[]) {
     try {
-        if (argc == 2 && std::string(argv[1]) == "--help") {
+        if (argc == 1 || (argc == 2 && std::string(argv[1]) == "--help")) {
             printUsage();
             return 0;
         }
