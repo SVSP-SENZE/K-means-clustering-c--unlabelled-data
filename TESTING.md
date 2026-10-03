@@ -440,3 +440,59 @@ allocation failure, centroid-sum/movement overflow, actual disk-full/permission/
 mid-write failures, and cross-platform/library builds remain untested. The runner's
 nonzero failure path has not been deliberately triggered. The previously deferred
 DataPoint/DataSet validation cases are now covered as listed above.
+
+## Executed during milestone 9
+
+```powershell
+g++ -std=c++17 -Wall -Wextra -Wpedantic DataPoint.cpp DataSet.cpp Cluster.cpp RandomInitialiser.cpp KMeansPlusPlusInitialiser.cpp KMeans.cpp CsvIO.cpp CommandLine.cpp main.cpp -o MiniCluster.exe
+python experiments/compare_initializers.py --input sample.csv --k 2 --tolerance 0.000001 --max-iterations 100 --seeds 0 1 2 3 4 5 10 20 42 123 --output experiments/results/sample-comparison
+python experiments/plot_clusters.py --runs experiments/results/sample-comparison/runs/random/seed-0 experiments/results/sample-comparison/runs/kmeanspp/seed-0 --features 1 2 --output experiments/results/sample-comparison/clusters.png
+python experiments/test_experiment.py
+```
+
+The application rebuild exited 0 without warnings. Actual comparison output:
+
+```text
+Completed 20 C++ runs; results: experiments\results\sample-comparison
+random: mean inertia=4, range=[4, 4], mean iterations=2.3, tolerance/limit stops=10/0
+kmeans++: mean inertia=4, range=[4, 4], mean iterations=2, tolerance/limit stops=10/0
+Paired inertia: random lower=0, kmeans++ lower=0, ties=10
+```
+
+Matplotlib was initially missing. The first pip download was blocked by the
+sandbox; the approved retry installed it and its dependencies under .plot-deps.
+The installer warned about a pre-existing global numba/NumPy version requirement;
+numba is not used here and packages were installed in the local target directory.
+The first plot invocation could not import Matplotlib correctly because sandbox
+access to those installed files was denied. Repeating the same plot command
+outside the sandbox succeeded, returning 0:
+
+```text
+Saved experiments\results\sample-comparison\clusters.png and experiments\results\sample-comparison\clusters.svg from exported CSV rows.
+```
+
+The PNG was visually inspected: both panels show the four exported points, their
+cluster colours, labelled black-star centroids, shared axes, method/seed/inertia/
+iterations, and the warning that indices need not correspond between methods.
+
+The experiment checks also ran outside the sandbox to access Matplotlib. Actual
+output (exit 0):
+
+```text
+PASS: all 20 recorded runs match their exported members, means, inertia, and configuration
+PASS: per-method statistics recomputed from runs.csv match summary.csv
+PASS: generated PNG and SVG artifacts exist
+PASS: fresh 3D experiment uses identical settings for both methods
+PASS: existing output and duplicate seeds are rejected
+PASS: 3D feature projection is labelled and invalid feature numbers are rejected
+All experiment checks passed.
+```
+
+Checks validate input hashes, the complete method/seed grid, all exported point
+multiplicities/means/sizes/inertias, matched configuration, and aggregate metrics.
+Four additional C++ runs on a temporary 3D dataset exercised a one-iteration
+experiment and features 1/3 projection. No runtime performance or statistical
+sampling-frequency conclusions were tested. The main C++ regression suite was
+not rerun in this milestone because its code and the core algorithm were unchanged;
+the freshly rebuilt application was exercised by 24 actual experiment runs.
+Exact commands for a new reproduction directory are in experiments/README.md.

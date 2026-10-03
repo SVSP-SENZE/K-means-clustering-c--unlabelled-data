@@ -187,3 +187,32 @@ invalid synthetic partition was rejected by the accounting helper, as intended.
 The assistant updated README.md, DESIGN.md, TESTING.md, and this usage record with
 current commands, actual results, intentional CLI changes, and remaining limits.
 No GitHub push, independent human testing, or unexecuted test result is claimed.
+
+## Milestone 9
+
+The user requested an initializer comparison with identical settings and a
+documented seed list, per-run metrics and summaries, a scatter plot based on
+actual exports, projection caveats, and exact reproduction commands. They allowed
+optional Python plotting subject to course rules; no course-rule document was
+available or independently verified.
+
+The assistant reviewed the existing CLI/exports/documentation and chose the
+existing four-point sample with k=2, tolerance=1e-6, limit=100, and seeds
+[0,1,2,3,4,5,10,20,42,123]. It announced seed 0 for plotting before running.
+It added a Python driver invoking the existing C++ executable, a Matplotlib
+plotter, experiment validation, documentation, and actual retained export files.
+All clustering remained in C++; the core algorithm and classes were unchanged.
+
+The application rebuild succeeded without warnings. Twenty recorded runs all
+had inertia 4; Random averaged 2.3 iterations and K-Means++ 2.0. The assistant
+reported these as dataset-specific descriptive results without claiming universal
+superiority. It generated and visually inspected the PNG from exported rows and
+also saved SVG. Validation passed for all exports/aggregates plus four temporary
+3D C++ runs and a labelled feature projection.
+
+Matplotlib was missing initially. An approved download installed local plotting
+dependencies after sandbox network denial. Plotting initially failed because the
+sandbox could not read those files; the approved outside-sandbox retry succeeded.
+These setup failures and executed commands are recorded in TESTING.md. The
+assistant updated design/testing/AI records and reproduction instructions.
+No GitHub push, independent human validation, or course approval is claimed.

@@ -1,0 +1,4 @@
+.plot-deps/
+.mpl-cache/
+__pycache__/
+*.pyc

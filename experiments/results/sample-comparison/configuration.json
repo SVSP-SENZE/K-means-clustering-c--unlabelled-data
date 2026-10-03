@@ -1,0 +1,27 @@
+{
+  "original_input": "C:\\Users\\JIYA\\Desktop\\K-means-clustering-c--unlabelled-data\\sample.csv",
+  "input_sha256": "900394050a91cf1e9864954819235b33e37674c937c9d46d0169fbf1546ad381",
+  "executable_sha256": "d87025461a12749dfeb6473885b8c7cf82a4d20741ae06de168c0e034db97712",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.14.4",
+  "k": 2,
+  "tolerance": 1e-06,
+  "maximum_iterations": 100,
+  "methods": [
+    "random",
+    "kmeans++"
+  ],
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    10,
+    20,
+    42,
+    123
+  ],
+  "plot_seed_selected_in_advance": 0
+}

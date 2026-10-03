@@ -119,3 +119,20 @@ The Python script is an additional CLI/export integration check, requiring only
 Python 3's standard library. It is not required to build or run the C++ suite.
 Both suites use temporary CSV fixtures, report failures, and return nonzero on
 failure. See TESTING.md for coverage, executed results, and remaining limitations.
+
+## Initialization experiment and scatter plot
+
+See [experiments/README.md](experiments/README.md) for exact comparison/plotting
+commands and the documented seed list. The recorded comparison uses sample.csv,
+k=2, tolerance=0.000001, 100 maximum iterations, and ten seeds per method.
+Both methods achieved inertia 4 in every run; mean iterations were 2.3 for Random
+and 2.0 for K-Means++. This small experiment does not imply either method always wins.
+
+Recorded metrics: [runs.csv](experiments/results/sample-comparison/runs.csv),
+[summary.csv](experiments/results/sample-comparison/summary.csv), and
+[report.md](experiments/results/sample-comparison/report.md).
+The [scatter plot](experiments/results/sample-comparison/clusters.png) draws actual
+exported memberships and star-marked centroids for the preselected seed 0.
+Python is used only for orchestration, summaries, and plotting; all clustering
+remains in C++. Two selected features of higher-dimensional data are only a
+projection, as explained and labelled by the plotting script.

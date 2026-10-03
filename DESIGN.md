@@ -248,3 +248,33 @@ bookkeeping beyond the existing member representation.
 No domain-class or clustering-loop changes were needed: all executed tests passed,
 so no production algorithm defect was demonstrated. The intentional CLI change
 is separating tests from normal program execution as requested.
+
+## Milestone 9 decisions
+
+- experiments/compare_initializers.py is a separate standard-library Python
+  driver of the existing C++ CLI. It snapshots input once and runs both methods
+  with identical k, tolerance, iteration limit, and the same ordered seed list.
+  No core classes, CLI, tests, or clustering calculations were changed.
+- runs.csv is populated from each C++ run's summary.txt, with method, seed,
+  inertia, iterations, reason, and relative export directory. All assignments,
+  centroids, and summaries are retained. Failed runs abort rather than disappear
+  from an aggregate. Configuration and input/executable hashes are recorded.
+- Across-seed metrics include inertia mean/median/min/max/population standard
+  deviation, iteration mean/min/max, and reason counts. Paired inertia ties use
+  abs/relative tolerance 1e-9. These are descriptive statistics, not significance
+  or runtime tests; same seeds need not yield the same draws between methods.
+- The initial recorded experiment deliberately uses existing sample.csv, k=2,
+  tolerance=1e-6, limit=100, seeds [0,1,2,3,4,5,10,20,42,123]. Seed 0 for plotting
+  was selected in advance. No seed was filtered based on its outcome.
+- experiments/plot_clusters.py reads actual assignment/centroid CSVs and writes
+  PNG/SVG with Matplotlib. It does no clustering. Two-feature selection uses
+  one-based column numbers, while cluster indices remain zero-based and local
+  to each run. More than two fitted dimensions produces a labelled projection.
+- Python plotting dependencies live in ignored .plot-deps; the runner itself
+  uses only the standard library. The dependency versions and commands are in
+  experiments/plot-requirements.txt and experiments/README.md. Course permission
+  for optional Python utilities was not independently established.
+
+All ten pairs tied on inertia 4. Random averaged 2.3 iterations versus 2.0 for
+K-Means++. No claim that k-means++ always wins, runs faster, or finds a global
+optimum is supported by this tiny dataset. No specification deviations.
