@@ -1,5 +1,5 @@
 #include "CommandLine.h"
-
+#include "SvgPlot.h"
 #include "CsvIO.h"
 #include "RandomInitialiser.h"
 #include "KMeansPlusPlusInitialiser.h"
@@ -92,7 +92,10 @@ int runCommandLine(int argc, char* argv[]) {
                     ? "tolerance_reached" : "iteration_limit") << '\n'
                 << "cluster_numbering: zero-based (0 to k-1)\n"
                 << "assignment_policy: reported members from the final completed iteration\n";
+        
         csv::exportResults(argv[7], model, summary.str());
+        writeClusterPlot(model, 0, 1,
+                 std::filesystem::path(argv[7]) / "clusters.svg");
         std::cout << summary.str();
         for (std::size_t i = 0; i < model.getClusters().size(); ++i) {
             const Cluster& cluster = model.getClusters()[i];
