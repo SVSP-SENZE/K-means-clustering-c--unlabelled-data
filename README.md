@@ -10,9 +10,32 @@ domain classes.
 From this directory, with g++ on PATH:
 
 ```powershell
-g++ -std=c++17 -Wall -Wextra -Wpedantic DataPoint.cpp DataSet.cpp Cluster.cpp RandomInitialiser.cpp KMeansPlusPlusInitialiser.cpp KMeans.cpp CsvIO.cpp CommandLine.cpp main.cpp -o MiniCluster.exe
+g++ -std=c++17 -Wall -Wextra -Wpedantic -Iinclude DataPoint.cpp DataSet.cpp Cluster.cpp RandomInitialiser.cpp KMeansPlusPlusInitialiser.cpp KMeans.cpp CsvIO.cpp JsonIO.cpp SvgPlot.cpp CommandLine.cpp main.cpp -o MiniCluster.exe
 .\MiniCluster.exe sample.csv 2 kmeans++ 42 100 0.000001 my-results
 ```
+
+The JSON reader/exporter uses the vendored single-header
+`include/nlohmann/json.hpp` library. JSON input is selected by the `.json`
+extension; all other input filenames use the existing CSV reader. A JSON input
+file must contain a nonempty `points` array of equal-length numeric rows, for
+example:
+
+```json
+{
+  "points": [[1, 1], [1, 3], [8, 8], [8, 10]]
+}
+```
+
+Run it with the same arguments as CSV:
+
+```powershell
+.\MiniCluster.exe sample.json 2 kmeans++ 42 100 0.000001 json-results
+```
+
+Each successful run now writes `results.json` in addition to the CSV exports.
+It contains each cluster's zero-based index, centroid, size, members, and the
+run's inertia and iteration count. The SVG visualization is written as
+`clusters.svg` and currently plots features 1 and 2.
 
 Use a **new output directory** for each run. To compare random initialization:
 

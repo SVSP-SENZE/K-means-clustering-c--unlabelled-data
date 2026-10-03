@@ -3,6 +3,7 @@
 #include "CsvIO.h"
 #include "RandomInitialiser.h"
 #include "KMeansPlusPlusInitialiser.h"
+#include "JsonIO.h"
 
 #include <charconv>
 #include <cstdint>
@@ -65,7 +66,14 @@ int runCommandLine(int argc, char* argv[]) {
         const std::size_t maximumIterations = parseCount(argv[5], "Maximum iterations");
         const double tolerance = csv::parseFiniteNumber(argv[6], "Tolerance");
         KMeans model(k, maximumIterations, tolerance, seed);
-        const DataSet dataset = csv::readDataSet(inputFile);
+        const std::filesystem::path inputPath = inputFile;
+        DataSet dataset;
+
+        if (inputPath.extension() == ".json") {
+            dataset = jsonio::readDataSet(inputPath);
+        } else {
+            dataset = csv::readDataSet(inputPath);
+        }
         RandomInitialiser random;
         KMeansPlusPlusInitialiser plusPlus;
         if (method == "random") {
@@ -94,8 +102,16 @@ int runCommandLine(int argc, char* argv[]) {
                 << "assignment_policy: reported members from the final completed iteration\n";
         
         csv::exportResults(argv[7], model, summary.str());
-        writeClusterPlot(model, 0, 1,
-                 std::filesystem::path(argv[7]) / "clusters.svg");
+
+        jsonio::exportResults(
+            std::filesystem::path(argv[7]) / "results.json",
+            model);
+
+        if (dataset.dimension() >= 2) {
+            writeClusterPlot(
+                model, 0, 1,
+                std::filesystem::path(argv[7]) / "clusters.svg");
+        }
         std::cout << summary.str();
         for (std::size_t i = 0; i < model.getClusters().size(); ++i) {
             const Cluster& cluster = model.getClusters()[i];
@@ -109,7 +125,11 @@ int runCommandLine(int argc, char* argv[]) {
             }
             std::cout << "), size " << cluster.size() << '\n';
         }
-        std::cout << "Exported assignments.csv, centroids.csv, summary.txt to " << argv[7] << '\n';
+        std::cout << "Exported CSV files and results.json to " << argv[7];
+        if (dataset.dimension() >= 2) {
+            std::cout << " (also clusters.svg)";
+        }
+        std::cout << '\n';
         return 0;
     } catch (const std::exception& error) {
         std::cerr << "ERROR: " << error.what() << '\n';
