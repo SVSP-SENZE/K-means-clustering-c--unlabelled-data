@@ -505,3 +505,21 @@ Menu checks cover repeated demos and separate exports, known centroids/sizes,
 invalid-field recovery, existing-output protection, plot-axis validation,
 cancellation, EOF, help, and single-point/one-dimensional defaults.
 `make check` now also runs the menu integration checks.
+
+## Full verification ? 4 October 2026
+
+- `make -B check`: forced warning-enabled rebuild; all C++ and CLI/menu checks passed.
+- `make clean` followed by `make check`: clean target and complete rebuild passed.
+- `make run` with option 3: menu launched and exited normally.
+- `make all`: correctly recognized the current build without recompiling.
+- C++ suite: 54 regression checks, 8 additional groups and 240 fitted partitions passed.
+- `python experiments/test_experiment.py`: recorded 20-run metrics, fresh 3D
+  experiment, PNG/SVG generation and invalid-feature/output checks passed.
+  The initial sandbox run could not read existing `.plot-deps` files; the approved
+  retry passed. Plotting still requires the optional Matplotlib dependencies.
+- Fresh `sample.json` CLI run: CSV memberships/means/inertia verified, JSON parsed,
+  and SVG output created successfully in a temporary directory.
+- `git diff --check`: passed. No compiler warnings appeared.
+
+These checks establish the tested workflows on this Windows toolchain; the
+remaining numerical/performance/platform limits documented above still apply.

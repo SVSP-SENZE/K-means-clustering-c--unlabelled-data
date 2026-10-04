@@ -3,6 +3,46 @@
 This record summarizes interactions visible in this conversation. It is not a
 verbatim prompt transcript and makes no claims about work outside the conversation.
 
+## Meeting 3: transparency summary
+
+**Tool:** OpenAI Codex. AI assisted with design explanations, C++ implementation,
+test implementation/execution, initializer experiments, menu improvements and
+documentation. Its contribution included generated code, not only brainstorming.
+The milestone entries below describe the recorded scope and checks.
+
+**Approach:** specify small tasks and expected behaviour, inspect the resulting
+changes, compile with warnings, run checks, and record actual outcomes. Automated
+checks run by the assistant are evidence of execution, not independent student
+review or proof of correctness for all inputs.
+
+**Examples of actual recent prompts** (quoted as entered):
+
+| Prompt | Result and evidence |
+| --- | --- |
+| ?can you imporve it the user menu and maybe beutify idk what else can be done?? | Guided setup, defaults, validation, quick demo and explanations; `test_menu.py` checks the workflows. |
+| ?lets make it crisp and clear? (README/UML request) | Rewritten README and a Mermaid diagram reflecting the seven implemented classes. |
+| ?can we make it easier to see all grpahs? (gallery request) | Embedded saved plots with settings, interpretation and links; existing results were used. |
+| ?chekc is everything is working including the make file? | Clean/forced builds, C++/CLI/menu checks, JSON export and experiment plotting executed; details in `TESTING.md`. |
+
+The short excerpts above are not a full transcript. Preserve the original chat
+or selected conversation excerpts if submitting prompt evidence; do not invent
+prompts or reconstruct them as verbatim messages.
+
+**Useful AI-assisted exploration:** compare Random and K-Means++ across ten
+matched seeds, then plot exported memberships rather than reclustering in Python.
+Both methods achieved inertia 4 on the sample; mean iteration counts were 2.3
+and 2.0. This is a small-dataset observation, not a general superiority claim.
+
+**Before the final presentation ? team to complete:**
+
+- Record who reviewed which classes, design decisions and tests.
+- Run the build/demo yourselves and record the commands and observations.
+- Identify an AI suggestion you accepted, modified or rejected, with your reason.
+- Be ready to explain the initializer interface, centroid update, stopping rule,
+  empty-cluster policy, input validation and the limitations of the comparison.
+
+These are pending student activities; this log does not claim they are complete.
+
 ## Initial inspection and learning discussion
 
 The user supplied the project statement, a seven-class OOD plan, and a workflow
@@ -216,3 +256,18 @@ sandbox could not read those files; the approved outside-sandbox retry succeeded
 These setup failures and executed commands are recorded in TESTING.md. The
 assistant updated design/testing/AI records and reproduction instructions.
 No GitHub push, independent human validation, or course approval is claimed.
+
+## Menu, documentation and verification follow-up ? 4 October 2026
+
+After fetching/pulling the latest GitHub version, the assistant improved the
+interactive menu and added menu integration checks, rebuilt the executable,
+rewrote the README with UML and a gallery of all tracked graphs, and corrected
+the experiment documentation build command. The assistant ran forced and clean
+Makefile builds, the C++/CLI/menu suites, a fresh JSON export, and experiment
+checks including plot generation. All completed successfully; plotting needed
+an approved retry to read existing local dependencies. `TESTING.md` records the
+verification. Option 5 was also executed and its actual output shown in chat.
+
+The assistant added the Meeting 3 transparency summary at the user's request
+for documentation guidance. No independent team review, course approval, or
+completion of the pending student activities is claimed.

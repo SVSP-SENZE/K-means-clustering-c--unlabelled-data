@@ -270,6 +270,38 @@ maximum centroid movement is within tolerance or the iteration limit is reached.
 
 The interface class is `IInitialiser`; its existing filename is `IInitializer.h`.
 
+## AI usage and assessment evidence
+
+**We used OpenAI Codex** for design explanations, C++ implementation assistance,
+test creation and execution, initializer comparisons, menu improvements, and
+README/UML documentation. AI generated code as well as suggestions. The work
+was developed through incremental prompts and checked with builds and automated
+tests; the team remains responsible for understanding and explaining the submission.
+
+Our [AI usage record](AI_USAGE.md#meeting-3-transparency-summary) includes actual
+prompt excerpts, contributions, verification evidence and pending student review.
+The full milestone history is in the same file. Selected original chat excerpts
+can accompany the presentation as prompt evidence.
+
+One useful AI-assisted exploration compared Random and K-Means++ over ten matched
+seeds and plotted actual C++ exports. Both achieved inertia 4 on the sample;
+mean iteration counts were 2.3 and 2.0. The [graph gallery](#graph-gallery) explains
+these results and their limits.
+
+### Meeting 3 preparation
+
+| Marking area | Project evidence and presentation preparation |
+| --- | --- |
+| Demo: implementation + testing ? 5 marks | Run `make check`, demonstrate menu option 4, then option 1 with your own input. Show centroids, sizes, exports and the SVG graph. See [testing evidence](TESTING.md). |
+| Viva: OO concepts + design insight ? 5 marks | Use the [UML and design decisions](#design-and-uml) to explain encapsulation, interface inheritance, polymorphism, composition and separation of responsibilities. Explain deviations from the suggested design and trace one assignment/update iteration. |
+| TA discretion ? 3 marks | Each teammate should explain their contribution, participate in the demo, and discuss data preparation, design choices and limitations. Team effort and individual understanding must be demonstrated by the team. |
+| AI transparency ? 2 marks | Name Codex, share real prompts and the interaction approach, identify AI-generated work, explain one accepted/modified/rejected suggestion, and show how results were checked. See [AI_USAGE.md](AI_USAGE.md). |
+
+This table organizes preparation and evidence; it does not guarantee marks.
+Before presenting, each teammate should review their assigned code and run the
+project independently. Record actual human review and contributions in the AI
+usage record; the current automated checks were executed by the assistant.
+
 ## Verification and further documentation
 
 ```sh
