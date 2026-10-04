@@ -496,3 +496,12 @@ sampling-frequency conclusions were tested. The main C++ regression suite was
 not rerun in this milestone because its code and the core algorithm were unchanged;
 the freshly rebuilt application was exercised by 24 actual experiment runs.
 Exact commands for a new reproduction directory are in experiments/README.md.
+
+## Guided menu improvements
+
+Rebuilt the application with C++17 and `-Wall -Wextra -Wpedantic`: no warnings.
+`python test_menu.py` and `python test_csv_cli.py` both passed.
+Menu checks cover repeated demos and separate exports, known centroids/sizes,
+invalid-field recovery, existing-output protection, plot-axis validation,
+cancellation, EOF, help, and single-point/one-dimensional defaults.
+`make check` now also runs the menu integration checks.

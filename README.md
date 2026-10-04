@@ -1,178 +1,285 @@
-# MiniCluster
+# MiniCluster ? K-Means Clustering
 
-C++17 K-means for arbitrary-dimensional numerical points. Seven domain classes
-handle points, datasets, clusters, fitting/prediction, and two initialization
-strategies. CSV and command-line handling use separate free functions, not new
-domain classes.
+A C++17 project that groups **unlabeled numerical data** into **k clusters**.
+It prints the **final centroids and cluster sizes**, and exports the results
+for inspection. Supports CSV/JSON input, random and K-Means++ initialization,
+and a guided terminal menu.
 
-## Build and run
+## Quick start
 
-With GNU Make and g++ installed, build and start the guided menu with:
+Requires a C++17 compiler; the commands below use **g++**. GNU Make is optional.
+Run from the project directory.
 
 ```sh
 make run
 ```
 
-The menu asks for the input file, number of clusters, initialization method,
-seed, iteration limit, tolerance, and a new output folder. Choose option 3 to
-exit. CSV and JSON input are both supported. For data with at least two
-features, the menu also asks which feature numbers to use for the graph's X
-and Y axes; the choices must be different. Data with one feature is clustered
-without creating a graph. To build without starting the menu, run `make`; to
-run the C++ checks, run `make tests`.
-
-The original command-line interface remains available for scripts and advanced
-use. The following direct build/run example is for PowerShell:
-
-From this directory, with g++ on PATH:
+Or build and run directly in PowerShell:
 
 ```powershell
 g++ -std=c++17 -Wall -Wextra -Wpedantic -Iinclude DataPoint.cpp DataSet.cpp Cluster.cpp RandomInitialiser.cpp KMeansPlusPlusInitialiser.cpp KMeans.cpp CsvIO.cpp JsonIO.cpp SvgPlot.cpp CommandLine.cpp main.cpp -o MiniCluster.exe
-.\MiniCluster.exe sample.csv 2 kmeans++ 42 100 0.000001 my-results
+.\MiniCluster.exe
 ```
 
-The JSON reader/exporter uses the vendored single-header
-`include/nlohmann/json.hpp` library. JSON input is selected by the `.json`
-extension; all other input filenames use the existing CSV reader. A JSON input
-file must contain a nonempty `points` array of equal-length numeric rows, for
-example:
+The JSON library is included in `include/nlohmann/json.hpp`; no download is needed.
 
-```json
-{
-  "points": [[1, 1], [1, 3], [8, 8], [8, 10]]
-}
-```
-
-Run it with the same arguments as CSV:
-
-```powershell
-.\MiniCluster.exe sample.json 2 kmeans++ 42 100 0.000001 json-results
-```
-
-Each successful run now writes `results.json` in addition to the CSV exports.
-It contains each cluster's zero-based index, centroid, size, members, and the
-run's inertia and iteration count. The SVG visualization is written as
-`clusters.svg` and currently plots features 1 and 2.
-
-Use a **new output directory** for each run. To compare random initialization:
-
-```powershell
-.\MiniCluster.exe sample.csv 2 random 42 100 0.000001 random-results
-.\MiniCluster.exe --help
-```
-
-sample-results/ contains the actual example export generated during milestone 7.
-Use my-results (or another new name) to run it yourself; choose a new name again
-on subsequent runs.
-
-The positional arguments, in order, are:
-
-| Argument | Meaning |
+| Menu option | Action |
 | --- | --- |
-| INPUT.csv | Input filename; quote paths containing spaces |
-| K | Positive number of clusters, at most the point count |
-| random or kmeans++ | Exact initialization method name |
-| SEED | Unsigned decimal integer from 0 through 4294967295 |
-| MAX_ITERATIONS | Positive integer |
-| TOLERANCE | Finite, nonnegative Euclidean centroid-movement tolerance |
-| OUTPUT_DIR | Directory to create for this run; must not already exist |
+| 1 | Start a guided analysis |
+| 2 | Show command-line help |
+| 3 | Exit |
+| 4 | Run the included four-point demo |
+| 5 | Explain K-means, settings and data formats |
 
-K and MAX_ITERATIONS must fit std::size_t. Integer arguments contain digits only.
-No optional defaults are hidden: all seven arguments are required for a CSV run.
-No arguments or --help displays usage. Run MiniClusterTests.exe for tests;
-the application no longer has an embedded --self-test mode.
-Errors print ERROR with a useful explanation and return exit code 1; success is 0.
+Choose **4** for a quick demonstration. In guided setup, **Enter** accepts the
+suggested value and **`/back`** cancels. Invalid answers can be corrected at the
+same prompt. Defaults: k=2 (1 for a single point), K-Means++, seed 42,
+100 iterations, and tolerance 0.000001. An unused output folder is suggested.
 
-## Strict input format
+## Input data
 
-- No header: one observation per nonblank row, comma-separated numerical fields.
-- The first data row establishes a positive dimension; every data row must match.
-- ASCII numeric text or UTF-8 without a byte-order mark (BOM); LF and CRLF endings
-  are supported. A final newline is optional.
-- Decimal syntax allows an optional sign, a decimal point, and an optional e/E
-  exponent, for example 1, -2.5, +.5, 3., or 1e-3. At least one digit is required.
-  Conversion must consume the whole field and produce a finite double. Values
-  outside double's conversion range, including underflow, are rejected.
-- Spaces and tabs around fields are allowed. Internal whitespace is rejected.
-- Empty or spaces/tabs-only lines are ignored, including leading/trailing lines.
-  Blank lines do not count as points; error line numbers still count physical lines.
-- Empty fields (including trailing commas), quoted fields, headers, comments,
-  NaN/infinity, hexadecimal numbers, and alternate separators are rejected.
-- Missing/unreadable files, directories, and datasets with no data rows are errors.
-  Field errors identify the filename, line, and field; dimension errors identify
-  the line and expected/actual field counts.
+**CSV:** one point per row, numerical features only, without a header.
+All rows must have the same number of features. Blank lines are ignored;
+empty fields, text and non-finite numbers are rejected.
 
-Included sample.csv:
-
-```text
+```csv
 1,1
 1,3
 8,8
 8,10
 ```
 
-## Export format and numbering
+**JSON:** a nonempty `points` array of numerical rows. Use a `.json` extension.
 
-Each successful CSV run creates three files:
-
-- assignments.csv: header feature_1,...,feature_D,cluster_index followed by one
-  row per fitted member. Rows are grouped by cluster index, with member order
-  preserved inside each cluster. Original global input order is not retained;
-  duplicate observations are all exported.
-- centroids.csv: header cluster_index,feature_1,...,feature_D,size followed by
-  one row for every cluster, including empty clusters.
-- summary.txt: input filename, point count, dimension, k, initialization method,
-  seed, maximum iterations, tolerance, inertia, completed iteration count,
-  stopping reason, numbering, and assignment policy.
-
-Cluster indices are **zero-based, 0 through k-1** throughout both CSV files,
-console output, and predict(). They identify groups, not semantic class labels,
-and can change order between runs. Feature column names start at feature_1.
-
-Assignments come from stored fitted members, not a new predict() pass. Centroids,
-memberships, and inertia describe the same completed assignment/update iteration.
-A tolerance or iteration-limit stop does not guarantee an assignment fixed point.
-
-Exports have headers and metadata columns and are not directly valid input files.
-Output numbers use a dot decimal separator and max_digits10 precision so doubles
-can round-trip. The output directory must be new; existing outputs are never
-overwritten. Output errors return failure. A disk/write failure can leave partial
-files in the new directory; exports are not a multi-file atomic transaction.
-
-## Checks
-
-Build the separate C++ test executable (no external framework):
-
-```powershell
-g++ -std=c++17 -Wall -Wextra -Wpedantic -I. DataPoint.cpp DataSet.cpp Cluster.cpp RandomInitialiser.cpp KMeansPlusPlusInitialiser.cpp KMeans.cpp CsvIO.cpp tests/TestSupport.cpp tests/RegressionChecks.cpp tests/TestMain.cpp -o MiniClusterTests.exe
-.\MiniClusterTests.exe
-python test_csv_cli.py
+```json
+{"points": [[1, 1], [1, 3], [8, 8], [8, 10]]}
 ```
 
-Build the application using the command above before running the Python script.
-The C++ suite preserves the 54 earlier regression checks and adds eight groups,
-including direct CSV validation and 240 fitted-result invariant checks. Test-only
-helpers and the fixed initializer live under tests/; main.cpp only launches the
-user-facing CLI. -I. lets test sources find headers in the project root.
+Use the included `sample.csv` or `sample.json`, or prepare your own data.
+For **Mall Customers**, select numerical features such as annual income and
+spending score; remove the header, customer IDs and text columns. Scale features
+before importing when their units or ranges differ substantially. MiniCluster
+does not automatically encode categories or scale features.
 
-The Python script is an additional CLI/export integration check, requiring only
-Python 3's standard library. It is not required to build or run the C++ suite.
-Both suites use temporary CSV fixtures, report failures, and return nonzero on
-failure. See TESTING.md for coverage, executed results, and remaining limitations.
+## Results
 
-## Initialization experiment and scatter plot
+The sample demo produces these centroids and sizes; cluster labels may be permuted:
 
-See [experiments/README.md](experiments/README.md) for exact comparison/plotting
-commands and the documented seed list. The recorded comparison uses sample.csv,
-k=2, tolerance=0.000001, 100 maximum iterations, and ten seeds per method.
-Both methods achieved inertia 4 in every run; mean iterations were 2.3 for Random
-and 2.0 for K-Means++. This small experiment does not imply either method always wins.
+```text
+Cluster 0: centroid (1,2), size 2
+Cluster 1: centroid (8,9), size 2
+```
 
-Recorded metrics: [runs.csv](experiments/results/sample-comparison/runs.csv),
-[summary.csv](experiments/results/sample-comparison/summary.csv), and
-[report.md](experiments/results/sample-comparison/report.md).
-The [scatter plot](experiments/results/sample-comparison/clusters.png) draws actual
-exported memberships and star-marked centroids for the preselected seed 0.
-Python is used only for orchestration, summaries, and plotting; all clustering
-remains in C++. Two selected features of higher-dimensional data are only a
-projection, as explained and labelled by the plotting script.
+The report also includes inertia, iteration count and stopping reason.
+**Inertia** is the sum of squared distances from points to their assigned
+centroids; lower values mean a tighter fit for the same dataset and k.
+
+| Output | Contents |
+| --- | --- |
+| `centroids.csv` | Cluster index, centroid coordinates and size |
+| `assignments.csv` | Each input point and its cluster index |
+| `summary.txt` | Run configuration, inertia and stopping information |
+| `results.json` | Centroids, members, sizes, inertia and iteration count |
+| `clusters.svg` | Scatter plot for data with at least two features |
+
+Each run requires a **new output folder**. Cluster indices start at **0**.
+Plot features are numbered from **1**; select two different features in the menu.
+A plot of higher-dimensional data shows only the selected two-feature projection.
+
+## Graph gallery
+
+Start with the **method comparison**, then view the **sample result** and
+**3D examples** below. Click any graph to open it at full size. All figures are
+saved results; you do not need to run the program to view them.
+
+**Reading the graphs:** coloured dots are input points; colours identify clusters
+within that run. Black crosses (SVG examples) or stars (comparison) mark centroids.
+`C0`, `C1`, etc. are cluster indices, not category names. Colours and indices can
+change between runs even when the grouping is identical.
+
+### 1. Random vs K-Means++ ? same grouping, different labels
+
+[![Random and K-Means++ comparison for the four-point sample, seed 0](experiments/results/sample-comparison/clusters.png)](experiments/results/sample-comparison/clusters.png)
+
+**What it shows:** both methods find the same two groups in `sample.csv` at seed 0.
+Each group has two points; centroids are (1,2) and (8,9). Both runs have inertia 4
+and take two iterations. The cluster labels are reversed between panels.
+[Open SVG](experiments/results/sample-comparison/clusters.svg) ?
+[Read the experiment report](experiments/results/sample-comparison/report.md)
+
+Across **all ten recorded seeds**, both methods have inertia 4. Random averages
+2.3 iterations; K-Means++ averages 2.0. These are iteration counts, not timing
+measurements, and describe this small dataset only.
+[View all 20 runs](experiments/results/sample-comparison/runs.csv) ?
+[Reproduce the comparison](experiments/README.md#exact-reproduction-commands-powershell-project-root)
+
+### 2. Basic 2D example ? the assignment deliverable
+
+[![Sample CSV result: four points in two clusters with centroids marked](prof-csv-demo/clusters.svg)](prof-csv-demo/clusters.svg)
+
+**What it shows:** `sample.csv`, k=2, K-Means++, seed 42. Two clusters with sizes
+2 and 2; centroids (1,2) and (8,9); inertia 4. X is feature 1 and Y is feature 2.
+[Centroids and sizes](prof-csv-demo/centroids.csv) ?
+[Run settings](prof-csv-demo/summary.txt)
+
+**Make your own:** start the application and choose **4** for the quick demo,
+or choose **1** to load another file. Open `clusters.svg` in the output folder
+with a browser after the run.
+
+### 3. Three-dimensional data ? k=2
+
+[![Three-dimensional sample projected onto features 1 and 2, with two clusters](test_run_3/clusters.svg)](test_run_3/clusters.svg)
+
+**What it shows:** `sample2.csv`, three points, random initialization, seed 42,
+k=2. One cluster contains two points with centroid **(2.5,3,3.5)**; the other
+contains one point with centroid **(1,1,1)**. Total inertia is 3.
+**Only features 1 and 2 are drawn**; fitting and inertia use all three features.
+[Full 3D centroids](test_run_3/centroids.csv) ? [Run settings](test_run_3/summary.txt)
+
+### 4. Same three-dimensional data ? k=3
+
+[![Three-dimensional sample projected onto features 1 and 2, one cluster per point](user_test_2/clusters.svg)](user_test_2/clusters.svg)
+
+**What it shows:** the same three points with k=3, random initialization and seed
+42. Each point is its own cluster, so every size is 1 and inertia is 0. Centroid
+markers overlap the points. This illustrates the effect of increasing k; zero
+inertia alone does not establish a useful choice of k. The two recorded runs
+also use different tolerances; their full settings are linked.
+[Full 3D centroids](user_test_2/centroids.csv) ? [Run settings](user_test_2/summary.txt)
+
+<details>
+<summary>More saved graphs: JSON, menu and verification examples</summary>
+
+These repeat the four-point, two-cluster grouping from example 2. They show
+saved results from different input paths and checks, rather than new datasets.
+
+**JSON demo:** `sample.json`, K-Means++, seed 42, k=2; inertia 4.
+[Run settings](prof-json-demo/summary.txt)
+
+[![JSON demo showing the same two sample clusters](prof-json-demo/clusters.svg)](prof-json-demo/clusters.svg)
+
+**Guided-menu example:** `sample.csv`, K-Means++, seed 42, k=2;
+tolerance 0.0000005; inertia 4. [Run settings](user_test_menu/summary.txt)
+
+[![Saved guided-menu result with two sample clusters](user_test_menu/clusters.svg)](user_test_menu/clusters.svg)
+
+**JSON verification:** `sample.json`, K-Means++, seed 42, k=2; inertia 4.
+[Run settings](json-check-final/summary.txt)
+
+[![JSON verification result with two sample clusters](json-check-final/clusters.svg)](json-check-final/clusters.svg)
+
+**CSV verification:** `sample.csv`, K-Means++, seed 42, k=2; inertia 4.
+[Run settings](test-results/summary.txt)
+
+[![CSV verification result with two sample clusters](test-results/clusters.svg)](test-results/clusters.svg)
+
+</details>
+
+`sample-results/` contains older CSV exports without a graph. The local
+`meeting2-demo-20261003-212739/` folder contains another copy of the JSON sample
+plot; it is currently untracked and is not part of the GitHub gallery.
+
+## Command-line use
+
+All seven positional arguments are required; two plot-feature arguments are optional.
+
+```text
+MiniCluster.exe INPUT K METHOD SEED MAX_ITERATIONS TOLERANCE OUTPUT_DIR [X_FEATURE Y_FEATURE]
+```
+
+```powershell
+.\MiniCluster.exe sample.csv 2 kmeans++ 42 100 0.000001 my-results
+.\MiniCluster.exe sample.json 2 random 42 100 0.000001 json-results
+.\MiniCluster.exe --help
+```
+
+| Setting | Valid values |
+| --- | --- |
+| K | 1 through the number of input points |
+| METHOD | `random` or `kmeans++` |
+| SEED | Integer from 0 to 4294967295 |
+| MAX_ITERATIONS | Positive integer |
+| TOLERANCE | Finite, nonnegative centroid-movement threshold |
+| X_FEATURE / Y_FEATURE | Different 1-based feature numbers; default 1 and 2 |
+
+Quote paths containing spaces. Success returns exit code 0; errors return 1
+with an explanation. Running without arguments starts the menu.
+
+## Design and UML
+
+Seven classes separate data, clustering and centroid initialization. File I/O,
+plotting and the menu are separate functions. The diagram shows the main
+relationships and selected members, rather than every method.
+
+```mermaid
+classDiagram
+    class DataPoint {
+        -vector~double~ features
+        +dimension() size_t
+        +squaredDistanceTo(other) double
+    }
+    class DataSet {
+        -vector~DataPoint~ points
+        +addPoint(point) void
+        +size() size_t
+        +dimension() size_t
+    }
+    class Cluster {
+        -DataPoint centroid
+        -vector~DataPoint~ members
+        +updateCentroid() void
+        +size() size_t
+    }
+    class KMeans {
+        -size_t k
+        -vector~Cluster~ clusters
+        +fit(dataset, initialiser) void
+        +predict(point) size_t
+        +getInertia() double
+    }
+    class IInitialiser {
+        <<interface>>
+        +initialise(dataset, k, rng) vector~DataPoint~
+    }
+    class RandomInitialiser
+    class KMeansPlusPlusInitialiser
+    DataSet "1" *-- "0..*" DataPoint : points
+    Cluster "1" *-- "1" DataPoint : centroid
+    Cluster "1" *-- "0..*" DataPoint : members
+    KMeans "1" *-- "0..*" Cluster : owns
+    KMeans ..> DataSet : reads
+    KMeans ..> IInitialiser : uses during fit
+    IInitialiser <|-- RandomInitialiser
+    IInitialiser <|-- KMeansPlusPlusInitialiser
+```
+
+**How fitting works:** select initial centroids, assign each point to its nearest
+centroid, then update each centroid to the mean of its members. Repeat until
+maximum centroid movement is within tolerance or the iteration limit is reached.
+
+**Decisions to discuss:**
+
+- The initializer interface lets both strategies use the same `fit()` algorithm.
+- Random initialization samples distinct input indices; K-Means++ chooses later
+  centres using squared-distance weights.
+- Distance ties choose the lowest cluster index; empty clusters keep their centroid.
+- Results preserve the last completed assignment/update iteration. If stopped
+  early, a later `predict()` call can differ from a stored assignment.
+- A fixed seed supports repeatable runs in the same implementation. Different
+  starts can give different results; K-means does not guarantee a global optimum.
+
+The interface class is `IInitialiser`; its existing filename is `IInitializer.h`.
+
+## Verification and further documentation
+
+```sh
+make check
+```
+
+This builds/runs the C++ tests and runs the CLI and menu integration checks.
+Python 3 is required for the integration scripts; they use the standard library.
+
+- [Design decisions](DESIGN.md) ? detailed implementation and milestone history.
+- [Testing record](TESTING.md) ? executed checks, coverage and remaining limits.
+- [Initializer experiments](experiments/README.md) ? compare methods across seeds.
+- [AI usage](AI_USAGE.md) ? project assistance record.

@@ -5,6 +5,8 @@ only launches matched runs, reads their exports, summarizes metrics, and plots.
 The core classes and KMeans loop are unchanged. These optional experiment/plot
 utilities are separate from the C++ application and test suite.
 
+View the figures in the [main README graph gallery](../README.md#graph-gallery).
+
 ## Recorded experiment
 
 Dataset: the existing sample.csv, four 2D observations (1,1), (1,3), (8,8), (8,10).
@@ -54,7 +56,7 @@ Aggregates are built from summary.txt exports, not scraped console messages.
 Compile the application:
 
 ```powershell
-g++ -std=c++17 -Wall -Wextra -Wpedantic DataPoint.cpp DataSet.cpp Cluster.cpp RandomInitialiser.cpp KMeansPlusPlusInitialiser.cpp KMeans.cpp CsvIO.cpp CommandLine.cpp main.cpp -o MiniCluster.exe
+g++ -std=c++17 -Wall -Wextra -Wpedantic -Iinclude DataPoint.cpp DataSet.cpp Cluster.cpp RandomInitialiser.cpp KMeansPlusPlusInitialiser.cpp KMeans.cpp CsvIO.cpp JsonIO.cpp SvgPlot.cpp CommandLine.cpp main.cpp -o MiniCluster.exe
 ```
 
 Run the comparison into a new directory (the recorded sample-comparison exists):

@@ -61,7 +61,7 @@ def main():
     default = invoke()
     help_result = invoke("--help")
     require(default.returncode == 0 and help_result.returncode == 0
-            and default.stdout == help_result.stdout and "Usage:" in default.stdout
+            and "MINICLUSTER" in default.stdout and "Usage:" in help_result.stdout
             and "PASS:" not in default.stdout, "User-facing help without test execution")
     require(invoke("--self-test").returncode == 1, "Tests have a separate executable")
     print("PASS: user-facing help and no embedded self-test mode")

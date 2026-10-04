@@ -28,6 +28,7 @@ tests: $(TESTS)
 
 check: tests $(APP)
 	python test_csv_cli.py
+	python test_menu.py
 
 clean:
 	$(RM) $(APP) $(TESTS)
