@@ -1,0 +1,13 @@
+input_file: sample.csv
+points: 4
+dimension: 2
+k: 2
+initialization: kmeans++
+seed: 42
+maximum_iterations: 100
+tolerance: 4.9999999999999998e-07
+inertia: 4
+iterations: 2
+stopping_reason: tolerance_reached
+cluster_numbering: zero-based (0 to k-1)
+assignment_policy: reported members from the final completed iteration

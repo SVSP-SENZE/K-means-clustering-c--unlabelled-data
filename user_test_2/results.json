@@ -1,0 +1,56 @@
+{
+  "cluster_count": 3,
+  "clusters": [
+    {
+      "centroid": [
+        2.0,
+        2.0,
+        3.0
+      ],
+      "cluster_index": 0,
+      "members": [
+        [
+          2.0,
+          2.0,
+          3.0
+        ]
+      ],
+      "size": 1
+    },
+    {
+      "centroid": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "cluster_index": 1,
+      "members": [
+        [
+          1.0,
+          1.0,
+          1.0
+        ]
+      ],
+      "size": 1
+    },
+    {
+      "centroid": [
+        3.0,
+        4.0,
+        4.0
+      ],
+      "cluster_index": 2,
+      "members": [
+        [
+          3.0,
+          4.0,
+          4.0
+        ]
+      ],
+      "size": 1
+    }
+  ],
+  "dimension": 3,
+  "inertia": 0.0,
+  "iterations": 1
+}

@@ -5,7 +5,24 @@ handle points, datasets, clusters, fitting/prediction, and two initialization
 strategies. CSV and command-line handling use separate free functions, not new
 domain classes.
 
-## Build and run (PowerShell)
+## Build and run
+
+With GNU Make and g++ installed, build and start the guided menu with:
+
+```sh
+make run
+```
+
+The menu asks for the input file, number of clusters, initialization method,
+seed, iteration limit, tolerance, and a new output folder. Choose option 3 to
+exit. CSV and JSON input are both supported. For data with at least two
+features, the menu also asks which feature numbers to use for the graph's X
+and Y axes; the choices must be different. Data with one feature is clustered
+without creating a graph. To build without starting the menu, run `make`; to
+run the C++ checks, run `make tests`.
+
+The original command-line interface remains available for scripts and advanced
+use. The following direct build/run example is for PowerShell:
 
 From this directory, with g++ on PATH:
 
